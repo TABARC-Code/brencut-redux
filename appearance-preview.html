@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<title>BrenCut · Appearance preview only</title>
+<style>
+/* All modes share one semantic colour system. Styles never alter the cutter. */
+:root { --simple-a:168,139,250; --simple-d:3,7,18; }
+* { box-sizing: border-box; }
+[hidden] { display:none !important; }
+html, body { margin:0; min-height:100%; }
+body {
+  --page:rgb(var(--simple-d)); --panel:rgb(var(--simple-d));
+  --foreground:rgb(var(--simple-a)); --secondary:color-mix(in srgb,var(--foreground) 67%,var(--page));
+  --accent:rgb(var(--simple-a)); --accent-text:rgb(var(--simple-d));
+  --outline:color-mix(in srgb,var(--foreground) 32%,var(--page));
+  --raised:color-mix(in srgb,var(--foreground) 8%,var(--page));
+  --stage:color-mix(in srgb,var(--foreground) 5%,var(--page));
+  --cut-ink:rgb(var(--simple-d)); --cut-highlight:rgb(var(--simple-a));
+  --radius:5px; --panel-radius:8px; --font:ui-monospace,'Cascadia Code',Consolas,monospace;
+  color:var(--foreground); background:var(--page); font:13px/1.5 var(--font);
+  display:grid; grid-template-rows:auto minmax(0,1fr); height:100dvh; overflow:hidden;
+}
+body[data-appearance="kawaii"] {
+  --page:#fff6fb; --panel:#fffbfe; --foreground:#432b52; --secondary:#725b7c;
+  --accent:#8245a1; --accent-text:#fff; --outline:#e7d5e9; --raised:#f7e9f8;
+  --stage:#f7ebfa; --cut-ink:#382344; --cut-highlight:#a449be;
+  --radius:16px; --panel-radius:20px; --font:'Trebuchet MS','Segoe UI',system-ui,sans-serif;
+}
+body[data-appearance="engineer"] {
+  --page:#0c1219; --panel:#121c26; --foreground:#d7eee9; --secondary:#96afa9;
+  --accent:#6ae5bb; --accent-text:#0b211b; --outline:#32535b; --raised:#192833;
+  --stage:#0d1822; --cut-ink:#162833; --cut-highlight:#09d9aa;
+  --radius:3px; --panel-radius:4px; --font:ui-monospace,'Cascadia Code',Consolas,monospace;
+}
+button, input, select { font:inherit; color:inherit; }
+button { touch-action:manipulation; }
+:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+header { display:flex; align-items:center; gap:12px; padding:12px clamp(14px,2vw,24px); border-bottom:1px solid var(--outline); background:var(--panel); flex-wrap:wrap; z-index:1; }
+.brand { display:flex; gap:10px; align-items:center; margin-right:auto; min-width:184px; }
+.brand-mark { width:36px; height:36px; display:grid; place-items:center; border-radius:var(--radius); background:var(--accent); color:var(--accent-text); font-size:21px; font-weight:700; line-height:1; }
+.brand h1 { font-size:17px; letter-spacing:.035em; margin:0; line-height:1.2; }
+.brand .sub { color:var(--secondary); font-size:11px; letter-spacing:.02em; }
+body[data-appearance="engineer"] .brand h1 { letter-spacing:.18em; }
+.appearance-control { display:flex; align-items:center; gap:8px; }
+.appearance-label { font-size:11px; color:var(--secondary); font-weight:600; }
+.mode-switch { display:flex; align-items:center; padding:3px; background:var(--raised); border:1px solid var(--outline); border-radius:calc(var(--radius) + 4px); gap:3px; }
+.mode-switch button { border:0; background:transparent; min-height:32px; border-radius:var(--radius); cursor:pointer; padding:5px 11px; color:var(--foreground); }
+.mode-switch button:hover { background:color-mix(in srgb,var(--accent) 13%,transparent); }
+.mode-switch button[aria-pressed="true"] { background:var(--accent); color:var(--accent-text); font-weight:700; box-shadow:0 1px 6px #0002; }
+.pill { display:inline-flex; align-items:center; gap:7px; padding:8px 12px; border:1px solid var(--outline); border-radius:999px; white-space:nowrap; background:var(--raised); font-size:12px; }
+.pill .dot { flex:none; width:8px; height:8px; border-radius:50%; border:1.5px solid var(--secondary); }
+.pill.on .dot { background:var(--accent); border-color:var(--accent); }
+.pill.busy .dot { background:var(--accent); border-color:var(--accent); animation:blink 1.2s steps(2) infinite; }
+@keyframes blink { 50% { opacity:.25; } }
+
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; background:var(--raised); border:1px solid var(--outline); border-radius:var(--radius); min-height:38px; padding:8px 12px; cursor:pointer; text-align:center; font-weight:600; }
+.btn:hover:not(:disabled) { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 14%,var(--page)); }
+.btn:active:not(:disabled) { transform:translateY(1px); }
+.btn:disabled { opacity:.48; cursor:not-allowed; }
+.btn.primary { background:var(--accent); color:var(--accent-text); border-color:var(--accent); font-weight:750; }
+.btn.primary:hover:not(:disabled) { background:color-mix(in srgb,var(--accent) 82%,white); }
+.btn.icon { padding:4px 7px; min-height:32px; min-width:32px; }
+.btn.wide { width:100%; min-height:47px; font-size:14px; }
+.btns { display:flex; flex-wrap:wrap; gap:7px; }
+.btns .btn { flex:1; }
+#addBtn { flex:1.5 1 132px; white-space:nowrap; }
+.btn.help { width:38px; min-width:38px; height:38px; padding:4px; border-radius:50%; font-size:18px; font-weight:800; }
+
+main { display:grid; grid-template-columns:minmax(0,1fr) minmax(340px,382px); min-height:0; }
+#stage { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:26px 22px; min-height:0; overflow:auto; background:var(--stage); }
+body[data-appearance="kawaii"] #stage { background-image:radial-gradient(#debfeb 1px,transparent 1px); background-size:22px 22px; }
+body[data-appearance="engineer"] #stage { background-image:linear-gradient(#29404d48 1px,transparent 1px),linear-gradient(90deg,#29404d48 1px,transparent 1px); background-size:25px 25px; }
+.stage-caption { font-size:11px; letter-spacing:.10em; color:var(--secondary); font-weight:750; text-align:center; text-transform:uppercase; }
+#sheetWrap { position:relative; width:min(100%, (100dvh - 226px) * 4 / 7); aspect-ratio:4 / 7; flex:none; }
+#sheet { width:100%; height:100%; display:block; touch-action:none; background:white; box-shadow:0 0 0 1px var(--outline),0 14px 42px #0005; }
+body[data-appearance="kawaii"] #sheet { border-radius:5px; box-shadow:0 14px 36px #703e7a29,0 0 0 2px #e7cde8; }
+body[data-appearance="engineer"] #sheet { box-shadow:0 0 0 1px #5ac4b8,0 12px 40px #0009; }
+body[data-appearance="engineer"] #empty .empty-icon { border-radius:4px; border-color:#6ae5bb; background:#e8fbf4; color:#144b3c; }
+#stage.drag #sheet { box-shadow:0 0 0 4px var(--accent); }
+.ruler { position:absolute; font-size:11px; color:var(--secondary); white-space:nowrap; }
+.ruler.w { top:-22px; left:0; right:0; text-align:center; }
+.ruler.h { right:100%; margin-right:6px; top:0; bottom:0; writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; }
+#empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:22px; text-align:center; pointer-events:none; color:#554563; font:13px/1.5 'Segoe UI',system-ui,sans-serif; }
+#empty strong { font-size:16px; margin:10px 0 4px; color:#3f3250; }
+#empty span { max-width:210px; }
+#empty .empty-icon { width:55px; height:55px; display:grid; place-items:center; font-size:28px; border:2px dashed #c6a7cf; border-radius:14px; background:#f6eafa; }
+#empty small { margin-top:14px; color:#74677e; }
+.stage-footnote { font-size:11px; color:var(--secondary); text-align:center; }
+
+aside { overflow:auto; min-height:0; background:var(--panel); border-left:1px solid var(--outline); padding:8px 8px 20px; }
+section { padding:15px 13px 17px; margin:5px 0 9px; border:1px solid var(--outline); border-radius:var(--panel-radius); background:var(--panel); }
+section h2 { font-size:12px; letter-spacing:.03em; margin:0 0 4px; display:flex; justify-content:space-between; align-items:center; gap:6px; }
+.section-desc { font-size:11px; color:var(--secondary); margin:0 0 12px; }
+.step { font-size:11px; font-weight:700; letter-spacing:.11em; opacity:.8; margin-right:4px; }
+.small { font-size:11px; }
+.muted { color:var(--secondary); }
+.row { display:flex; align-items:center; gap:10px; margin:8px 0; }
+.row label { flex:1; }
+.row.mm input { width:72px; }
+.row .unit { font-size:11px; color:var(--secondary); }
+.field-label { font-weight:600; }
+input[type=number] { width:73px; min-height:34px; padding:5px 7px; text-align:right; background:var(--raised); border:1px solid var(--outline); border-radius:var(--radius); }
+input[type=range] { width:100%; flex:1; accent-color:var(--accent); cursor:pointer; }
+input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; cursor:pointer; }
+.control-note { font-size:11px; color:var(--secondary); margin:8px 0 0; }
+.toggle-row { padding:2px 0; }
+#list { list-style:none; margin:12px 0 0; padding:0; }
+#list:empty { margin:0; }
+#list li { display:grid; grid-template-columns:42px minmax(0,1fr) auto; gap:7px; align-items:center; border:1px solid var(--outline); border-radius:var(--radius); padding:8px 5px; margin-top:6px; background:var(--raised); cursor:pointer; }
+#list li.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+#list li canvas { width:42px; height:42px; background:#fff; border-radius:4px; }
+#list .name { font-size:12px; font-weight:600; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+#list .dims { display:flex; gap:4px; align-items:center; color:var(--secondary); font-size:11px; margin-top:4px; }
+#list .dims input { width:59px; min-height:29px; }
+#list .acts { display:flex; gap:2px; }
+#listEmpty { border:1px dashed var(--outline); padding:13px; border-radius:var(--radius); margin-top:12px; color:var(--secondary); font-size:11px; }
+#cutStats { padding:10px; border:1px solid var(--outline); border-radius:var(--radius); background:var(--raised); line-height:1.5; margin-top:12px; }
+#progress { height:8px; background:var(--raised); border:1px solid var(--outline); border-radius:999px; overflow:hidden; margin:12px 0 7px; }
+#progress > div { height:100%; width:0; background:var(--accent); transition:width .2s; }
+#jobText { min-height:17px; }
+#log { margin:9px 0 0; max-height:145px; overflow-y:auto; font-size:11px; color:var(--secondary); white-space:pre-wrap; }
+.warn { border:1px solid var(--outline); border-left:3px solid var(--accent); background:var(--raised); border-radius:var(--radius); padding:10px; margin-top:10px; }
+.kbd { color:var(--secondary); font-size:11px; line-height:2; }
+kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4px; padding:2px 5px; font:inherit; }
+
+.help-dialog { background:var(--panel); color:var(--foreground); border:1px solid var(--outline); border-radius:var(--panel-radius); max-width:min(570px,calc(100vw - 24px)); width:100%; max-height:min(85dvh,750px); overflow:auto; padding:22px; box-shadow:0 30px 90px #0008; }
+.help-dialog::backdrop { background:#07101abf; backdrop-filter:blur(4px); }
+.help-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.help-head h2 { font-size:21px; margin:0; }
+.help-dialog h3 { font-size:13px; margin:18px 0 5px; }
+.help-dialog p { color:var(--secondary); margin:5px 0 11px; }
+.help-dialog ol { padding-left:21px; line-height:1.7; }
+.help-dialog li { padding:3px 0; }
+.help-dialog code { color:var(--foreground); background:var(--raised); border-radius:4px; padding:1px 4px; }
+
+@media(max-width:1100px) {
+  header { gap:8px; }
+  .appearance-label { display:none; }
+  main { grid-template-columns:minmax(0,1fr) 340px; }
+  #sheetWrap { width:min(100%, (100dvh - 240px)*4/7); }
+}
+@media(max-width:760px) {
+  body { min-height:100dvh; height:auto; overflow:visible; grid-template-rows:auto auto; }
+  header { padding:11px; gap:9px; }
+  .brand { width:100%; min-width:0; margin-right:0; }
+  .appearance-control { margin-right:auto; }
+  main { grid-template-columns:1fr; }
+  #stage { padding:42px 20px 19px; min-height:350px; overflow:visible; gap:25px; }
+  #sheetWrap { width:min(100%, 61dvh*4/7); }
+  aside { border-left:0; border-top:1px solid var(--outline); overflow:visible; padding:10px 10px 25px; }
+  section { margin:5px 0 10px; padding:15px; }
+}
+@media(max-width:390px) {
+  .mode-switch button { padding:4px 7px; }
+  #printerPill { padding:6px 8px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
+</style>
+</head>
+<body data-appearance="simple">
+<div id="previewNotice" role="note" style="position:fixed;left:12px;bottom:12px;z-index:10;background:#fef3c7;color:#3c2b17;border:1px solid #e4a34f;border-radius:8px;padding:8px 12px;max-width:min(460px,calc(100vw - 24px));font:12px/1.45 system-ui;box-shadow:0 3px 18px #0004"><strong>Design preview only.</strong> Appearance buttons and Help are interactive; importing, exporting and printing are disabled in this file. Use the source project to build the real app.</div>
+<header>
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">✂</span>
+    <div><h1>BRENCUT</h1><div class="sub">Sticker sheets · Liene PixCut S1</div></div>
+  </div>
+  <div class="appearance-control">
+    <span class="appearance-label">LOOK</span>
+    <div class="mode-switch" role="group" aria-label="Interface appearance">
+      <button type="button" data-appearance-choice="simple" aria-pressed="true">Simple</button>
+      <button type="button" data-appearance-choice="kawaii" aria-pressed="false">Kawaii</button>
+      <button type="button" data-appearance-choice="engineer" aria-pressed="false">Engineer</button>
+    </div>
+  </div>
+  <button id="helpBtn" class="btn help" type="button" aria-label="Help and getting started" aria-haspopup="dialog" aria-controls="helpDialog" aria-expanded="false" title="Help and getting started">?</button>
+  <span id="printerPill" class="pill" role="status"><span class="dot" aria-hidden="true"></span><span id="printerText">No printer</span></span>
+  <button id="connectBtn" class="btn" type="button">Connect printer</button>
+</header>
+<main>
+  <div id="stage" aria-label="Sheet workspace">
+    <div class="stage-caption">4 × 7 inch sticker sheet · live cut preview</div>
+    <div id="sheetWrap">
+      <div class="ruler w">101.6 mm / 4 in</div>
+      <div class="ruler h">177.8 mm / 7 in</div>
+      <canvas id="sheet" width="1200" height="2100" tabindex="0" aria-label="Sticker sheet; click artwork to select, drag to move, use corner handle to resize"></canvas>
+      <div id="empty"><span class="empty-icon" aria-hidden="true">✂</span><strong>Start with your artwork</strong><span>Drop a PNG or WebP here. Transparent areas define the cutting edge.</span><small>Or use Add artwork on the right</small></div>
+    </div>
+    <div class="stage-footnote">White = paper · coloured outline = cut path</div>
+  </div>
+  <aside aria-label="Sheet controls">
+    <section>
+      <h2><span><span class="step">01</span> Add &amp; arrange artwork</span><span id="count" class="muted" aria-live="polite"></span></h2>
+      <p class="section-desc">Import transparent images, then position or resize them on the sheet.</p>
+      <div class="btns">
+        <button id="addBtn" class="btn primary" type="button">＋ Add artwork</button>
+        <button id="arrangeBtn" class="btn" type="button" title="Automatically arrange stickers">Arrange</button>
+        <button id="clearBtn" class="btn" type="button" title="Remove all stickers">Clear</button>
+      </div>
+      <input id="file" type="file" accept="image/png,image/webp,image/gif" multiple hidden>
+      <div id="listEmpty">No artwork added. PNGs with transparent backgrounds give the best cut outlines.</div>
+      <ul id="list" aria-label="Imported stickers"></ul>
+    </section>
+    <section>
+      <h2><span><span class="step">02</span> Set up the cut</span></h2>
+      <p class="section-desc">Adjust the border and preview the blade's path before printing.</p>
+      <div class="row mm"><label class="field-label" for="margin">Border around artwork</label><input id="margin" type="number" min="0" max="10" step="0.5"><span class="unit">mm</span></div>
+      <div class="row"><input id="marginRange" type="range" min="0" max="6" step="0.5" aria-label="Cut border size in millimetres"></div>
+      <div class="row"><label class="field-label" for="kp">Knife pressure</label><input id="kp" type="number" min="1" max="100" step="1" title="The existing sticker stock default is 42"></div>
+      <div class="row toggle-row"><label for="holes">Cut internal holes</label><input id="holes" type="checkbox"></div>
+      <div class="row toggle-row"><label for="showCut">Show cut preview</label><input id="showCut" type="checkbox" checked></div>
+      <div id="cutStats" class="small" role="status" aria-live="polite">Waiting for artwork…</div>
+      <p class="control-note">Cut pressure affects the blade. Keep the supplied default for Liene sticker stock unless you have tested another value.</p>
+    </section>
+    <section>
+      <h2><span><span class="step">03</span> Print or export</span></h2>
+      <p class="section-desc">Connect your PixCut S1 to print and cut in one operation.</p>
+      <button id="printBtn" class="btn primary wide" type="button" disabled>Print &amp; cut sticker sheet</button>
+      <p id="printHint" class="control-note" role="status">Add artwork and connect your printer to begin.</p>
+      <div class="btns" style="margin-top:12px">
+        <button id="cancelBtn" class="btn" type="button" hidden>Cancel job</button>
+        <button id="jpgBtn" class="btn" type="button" disabled>↓ Print image (.jpg)</button>
+        <button id="pltBtn" class="btn" type="button" disabled>↓ Cut path (.plt)</button>
+      </div>
+      <div id="progress" role="progressbar" aria-label="Job upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div></div></div>
+      <div id="jobText" class="small" role="status" aria-live="polite"></div>
+      <div id="usbNote" class="warn small" hidden></div>
+      <pre id="log" aria-label="Printer event log"></pre>
+    </section>
+    <section>
+      <h2>Keyboard shortcuts</h2>
+      <div class="kbd"><kbd>←↑↓→</kbd> nudge 1 mm · <kbd>Shift</kbd> + arrows 5 mm<br><kbd>R</kbd> rotate · <kbd>D</kbd> duplicate · <kbd>Del</kbd> remove<br><kbd>Ctrl</kbd> + <kbd>V</kbd> paste artwork</div>
+    </section>
+  </aside>
+</main>
+<dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+  <div class="help-head"><h2 id="helpTitle">BrenCut help</h2><button id="helpClose" class="btn" type="button" aria-label="Close help">Close ×</button></div>
+  <p>Prepare transparent stickers, inspect the cut line, then send the sheet directly to your Liene PixCut S1.</p>
+  <h3>Getting started</h3>
+  <ol><li><strong>Add artwork.</strong> Drop PNG, WebP or GIF artwork onto the sheet, paste an image, or click Add artwork.</li><li><strong>Arrange.</strong> Drag a sticker to move it, use the bottom-right handle to resize, or enter its dimensions in the sticker list.</li><li><strong>Check the cut.</strong> The coloured outline shows what the blade will follow. Use Border to add space outside the image.</li><li><strong>Connect and print.</strong> Connect the PixCut S1 over USB in a supported Chromium browser, then select Print &amp; cut.</li></ol>
+  <h3>Artwork and cut paths</h3>
+  <p>A fully opaque image normally cuts as a rectangle. Use a transparent background for shaped stickers. A fully opaque sheet cannot provide an internal cut outline. Tiny shapes or crowded sheets may need adjustment; BrenCut refuses jobs when it cannot generate a usable cut.</p>
+  <h3>Simple, Kawaii and Engineer</h3>
+  <p>The appearance buttons change colours, typography and spacing only. They do not change image scale, cutter pressure, sheet layout or printer commands. Your selection is remembered in this browser.</p>
+  <h3>Printer connection</h3>
+  <p>Use Chrome or Edge on a secure website or localhost. Close other software using the printer before connecting. Export the JPEG and PLT files if you only need the prepared artwork and cut path.</p>
+  <p class="small">Shortcuts: arrow keys = move 1 mm; Shift + arrow = 5 mm; R = rotate; D = duplicate; Delete = remove. Escape closes help.</p>
+</dialog>
+
+<script>
+// Interface presentation only. No print settings, cut geometry or USB state live here.
+const APPEARANCES = Object.freeze(['simple', 'kawaii', 'engineer']);
+const BACKGROUNDS = Object.freeze({ simple: '#030712', kawaii: '#fff6fb', engineer: '#0c1219' });
+
+function normaliseAppearance(value) {
+  return APPEARANCES.includes(value) ? value : 'simple';
+}
+
+function setAppearance(mode, { doc = document, store, onChange = () => {}, persist = true } = {}) {
+  const choice = normaliseAppearance(mode);
+  doc.body.dataset.appearance = choice;
+  doc.documentElement.style.colorScheme = choice === 'kawaii' ? 'light' : 'dark';
+  const meta = doc.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = BACKGROUNDS[choice];
+  for (const button of doc.querySelectorAll('[data-appearance-choice]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.appearanceChoice === choice));
+  }
+  if (persist) store?.set('appearance', choice);
+  onChange(choice);
+  return choice;
+}
+
+function installAppearanceControls({ doc = document, store, onChange = () => {} } = {}) {
+  const value = normaliseAppearance(store?.get('appearance', 'simple'));
+  // Applying the initial theme happens before canvas rendering is wired in.
+  setAppearance(value, { doc, store, onChange: () => {}, persist: false });
+  for (const button of doc.querySelectorAll('[data-appearance-choice]')) {
+    button.addEventListener('click', () => {
+      setAppearance(button.dataset.appearanceChoice, { doc, store, onChange });
+    });
+  }
+  const dialog = doc.getElementById('helpDialog');
+  const opener = doc.getElementById('helpBtn');
+  const close = doc.getElementById('helpClose');
+  opener?.addEventListener('click', () => {
+    if (!dialog?.open) dialog?.showModal();
+    opener?.setAttribute('aria-expanded', 'true');
+  });
+  close?.addEventListener('click', () => dialog?.close());
+  dialog?.addEventListener('close', () => opener?.setAttribute('aria-expanded', 'false'));
+  // Native <dialog> handles Escape, focus containment and restores focus to the opener.
+  return value;
+}
+
+const store = {
+  get: (key, fallback) => { try { return JSON.parse(localStorage.getItem('brencut.' + key)) ?? fallback; } catch { return fallback; } },
+  set: (key, value) => { try { localStorage.setItem('brencut.' + key, JSON.stringify(value)); } catch {} },
+};
+installAppearanceControls({ store });
+document.getElementById('margin').value = 1.5;
+document.getElementById('kp').value = 42;
+document.getElementById('cutStats').textContent = 'Nothing to cut yet';
+for (const id of ['connectBtn','addBtn','arrangeBtn','clearBtn','jpgBtn','pltBtn','printBtn']) {
+  document.getElementById(id).disabled = true;
+}
+</script>
+
+</body>
+</html>

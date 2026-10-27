@@ -1,0 +1,59 @@
+# BrenCut Redux — development notes
+
+Maintainer: TABARC-Code  
+Working baseline: 1.1.0
+
+Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and three appearance options stable unless tests or hardware evidence justify a change. Make each release buildable before moving on. The machine gets the final say.
+
+## v1.1.0 — Interface and baseline [DONE]
+
+- Three switchable appearances: Simple, Kawaii and Engineer.
+- Help button with controls and keyboard shortcuts.
+- Clearer editor actions, printer status and mobile layout.
+- Safety checks for empty cuts, 100-contour overflow and failed arrangements.
+- Existing hardware behaviour intentionally left alone.
+
+## v1.2.0 — Transfer control and recovery [NEXT]
+
+- Check cancellation between every upload chunk, during acknowledgements and before creating the job.
+- Keep one cancellation path and avoid duplicate cancel requests.
+- Bound time waiting for a printer job; make failure and retry states legible.
+- Add simulated USB tests for a blocked transfer, lost connection, a cancelled upload and recovery.
+- Do not claim the device will stop mid-cut until hardware testing proves it.
+
+Acceptance: the application stops *sending* additional chunks after cancel; the printer receives a cancel request when a job ID exists; no stalled operation leaves the interface permanently busy; mocked transport tests pass.
+
+## v1.3.0 — Project files and cutting preflight [PLANNED]
+
+- Save source artwork with position, rotation, scale and cutting settings in a portable project file.
+- Reopen without depending on browser storage; validate file version and corrupted inputs.
+- Preview missing cut paths, contours near the edge, overlaps and unsupported sheet layouts before printing.
+- Distinguish warnings from hard stops; don't invent physical tolerances.
+- Compare exported JPEG and PLT against the original before and after a project round-trip.
+
+Acceptance: reopen a project with the same sheet geometry and settings; tests for invalid or incomplete files; preflight blocks known unsafe output.
+
+## v1.4.0 — Layout and explicit import [PLANNED]
+
+- Offer **individual sticker** and **full sheet** during import instead of guessing solely from dimensions.
+- Improve packing with optional 90-degree rotation and real cut margins.
+- Leave manually placed stickers alone unless the user chooses Arrange.
+- Show exactly what didn't fit rather than shifting or shrinking artwork silently.
+
+Acceptance: packing never silently overlaps stickers; dense fixtures demonstrate equal or better use of space; the original arrange behaviour remains available as fallback.
+
+## v1.5.0 — Editing workflow [PLANNED]
+
+- Undo/redo for placement, resizing, rotating and deletion.
+- Alignment guides and reliable dimensions in millimetres.
+- Multiple sheets as independent pages, with deliberate exports and print order.
+- Keep printer state separate from document state so changing appearance or changing pages never triggers a print job.
+
+Acceptance: undo/redo round-trips geometry; no shared-state leaks between sheets; keyboard operations remain accessible.
+
+## Still open
+
+- Printer-dependent cancellation timing, alignment and pressure need a real PixCut S1.
+- Project-file format must be versioned without making the archive fragile.
+- Full-sheet import needs a deliberate default, not another silent heuristic.
+- Future ideas are useful; quietly breaking print output to add them isn't.

@@ -1,54 +1,70 @@
-# BrenCut
+# BrenCut Redux
 
-**https://brencut.brennan.computer**
+A small browser-based workspace for preparing sticker sheets and cutting them on a **Liene PixCut S1**. Import artwork, arrange it on the page, check the cut line, then print and cut over USB. The aim is to make the job less fiddly without turning a sticker utility into half a design suite.
 
-Print and kiss-cut sticker sheets on a **Liene PixCut S1**, straight from the browser over USB, with no
-vendor app. No accounts, no logins, no ads, no nothing. Drop in transparent PNGs, arrange them on the 4×7 in sheet, press print & cut. The cut line
-follows each image's transparency, plus a white border with adjustable thickness.
+This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-## Use
+**Version:** 1.1.0  
+**Status:** Development release. Software checks pass; printing and cancellation still need a physical PixCut S1 test.
 
-1. Plug the PixCut S1 in over USB and open BrenCut in **Chrome or Edge** (any Chromium browser; WebUSB is
-   needed to reach the printer). Firefox and Safari can lay out a sheet and download the `.jpg` + `.plt`
-   but CANNOT PRINT. Sorry! This is their fault.
-2. Click **connect** (top right) and pick the printer.
-3. Add PNGs (drop, paste or pick). Either:
-   - **separate stickers**: each is trimmed to its art and sized from its DPI (300 if unset); drag,
-     resize, rotate, duplicate, or hit **arrange**; or
-   - **a whole sheet**: a 1200×2100 px (4×7 in at 300 DPI) PNG is placed exactly as drawn. Use a
-     transparent background, keep art ~5 mm from the edges and ~5 mm between stickers.
-4. Set the border and knife pressure, then **print & cut**.
+## Getting started
 
-**Knife pressure** runs 1–100. The official app uses 42 for Liene sticker paper so that's our default.
+1. Open the application in **Chrome or Edge** over HTTPS or localhost. Plug in the PixCut S1 and select **Connect**. Close the Liene application or any other tab using the printer first.
+2. Add transparent PNG artwork by file picker, drag-and-drop or paste. Drag to position it, pull the corner handle to resize, or use the artwork list for precise dimensions. **Arrange** lays out separate stickers automatically.
+3. Set the white border and knife pressure, inspect the cut preview, then choose **Print & Cut**. You can export the JPEG and PLT files without a printer attached.
 
-Windows needs no driver install: the printer's control and data interfaces come up on WinUSB.
-Only one program can hold the printer at a time, so close the Liene app (or another BrenCut tab) first.
+The working sticker area is **4 × 7 inches**, at **300 DPI**. Full sheets are supported when imported at the expected aspect ratio. A large single sticker can currently be mistaken for a complete sheet; an explicit import choice is planned.
 
-## Develop
+**WebUSB matters:** Chrome and Edge can connect to the printer. Browsers without WebUSB can still prepare artwork and export files, but cannot print directly. Nothing is uploaded to a server by the application.
 
-Live version is at **https://brencut.brennan.computer**
+## Three looks, same cutter
+
+Choose an appearance at the top of the window:
+
+- **Simple:** the original dark, uncluttered approach.
+- **Kawaii:** light colours, soft corners and a friendlier workbench.
+- **Engineer:** a more technical, grid-led layout.
+
+The selection is remembered in your browser and doesn't affect cut geometry, USB commands or saved printer settings. The **?** button explains the controls and useful keyboard shortcuts. The layout also adapts to narrower screens.
+
+There is an offline appearance demo in [`appearance-preview.html`](appearance-preview.html). It is a visual preview only; for actual image work and printing, run the application.
+
+## Controls and shortcuts
+
+- Drag artwork to move it; drag its corner to resize.
+- Arrow keys move a selected item by **1 mm**, or **5 mm** while holding Shift.
+- **R** rotates, **D** duplicates, **Delete** removes and **Escape** clears the selection.
+- **Ctrl+V** pastes artwork from the clipboard.
+
+For transparent artwork, the cut follows the visible shape with an adjustable white border. Fully opaque individual images produce a rectangular cut. A fully opaque sheet cannot supply the individual cut outlines. Don't rely on a preview that contains no cut paths: BrenCut refuses to print those jobs.
+
+## Build and test
+
+Node.js **22.6 or newer** is required by the current test setup.
 
 ```sh
 npm install
-npm run dev        # http://localhost:5174, rebuilds on reload
-npm test           # protocol framing, tracer conformance, sheet tracing
+npm test           # protocol, tracing, safety and appearance checks
+npm run dev        # development server: http://localhost:5174
 npm run build      # self-contained dist/index.html
-node tools/status.mjs   # read-only printer check from the terminal (node-usb)
 ```
 
-`src/protocol.js` is the printer protocol, written against a tiny `io` interface so the same code runs over
-WebUSB (`src/webusb.js`) and node-usb (`tools/node-usb.mjs`). `src/cut.js` turns the composited sheet into a
-PLT cut file. `src/app.js` is the UI. See `CLAUDE.md` for protocol notes.
+The application is plain JavaScript with a vendored TypeScript cut tracer. `src/app.js` handles the editing canvas and print workflow, `src/appearance.js` handles appearance and Help, `src/cut.js` prepares PLT instructions, `src/protocol.js` handles printer commands and `src/webusb.js` handles the USB connection.
 
-## Credits
+The current automated checks cover only simulated code paths. They do not replace a real print-and-cut check on sticker stock.
 
-- Cut-path tracer: [honeymaro/pixcut](https://github.com/honeymaro/pixcut) (MIT), vendored unmodified in
-  `vendor/pixcut-trace`; its fixtures in `test/fixtures` come from the vendor's own generator.
-- USB protocol: reverse-engineered by [popcornhax/PixCut-App](https://github.com/popcornhax/PixCut-App) (MIT).
+## Safety and current limits
 
-Not affiliated with Liene or Hannto. "PixCut" and "Liene" are their owners' trademarks, used only to name
-the hardware this works with. Use at your own risk.
+- Default knife pressure is **42**, the setting documented for Liene sticker stock. Adjustable range is **1–100**; different media require testing. Don't guess a pressure for expensive paper.
+- Cut tracing has a **100-contour limit**. If there are too many separate shapes the job is refused rather than silently dropping cuts.
+- Very small artwork can disappear during tracing. Increase its size or adjust the border, then check the preview.
+- Arrange uses a basic row layout. If it can't fit the artwork, it leaves the previous arrangement alone. Better packing is in the plan.
+- Cancelling while data is still uploading is not yet guaranteed to stop the printer immediately. Stay with the machine while testing.
 
-## License
+See [`CHANGELOG.md`](CHANGELOG.md) for changes and [`ROADMAP.md`](ROADMAP.md) for the staged work: safe cancellation, project files, a proper cutting preflight, better packing, explicit sheet import and editing conveniences.
 
-MIT. Please reach out with ideas and feature requests. Please don't just fork this and charge money or add ads or whatever, your mother will be very disappointed in you. This is free software.
+## Credits and licence
+
+BrenCut began with [LTKMN/brencut](https://github.com/LTKMN/brencut). The cut tracer is from [honeymaro/pixcut](https://github.com/honeymaro/pixcut) (MIT), and the USB work is based on [popcornhax/PixCut-App](https://github.com/popcornhax/PixCut-App) (MIT). Their copyright notices and licences remain with the source. See [`LICENSE`](LICENSE) and [`vendor/pixcut-trace/LICENSE`](vendor/pixcut-trace/LICENSE).
+
+BrenCut Redux is maintained by **TABARC-Code**. It is independent software and is not endorsed by Liene or Hannto. Use it with the usual care around a machine with a blade and a heater.

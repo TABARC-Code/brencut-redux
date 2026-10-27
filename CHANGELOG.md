@@ -1,0 +1,31 @@
+# Changes
+
+## 1.1.0 — switchable interface styles and clearer workflow
+
+- Add Simple, Kawaii and Engineer appearance buttons with local preference persistence; these alter display styling only.
+- Add a `?` help dialog with import, cut preview, keyboard and WebUSB guidance.
+- Restructure visible controls as three steps and improve visual hierarchy, empty states, disabled-action explanations and focus handling.
+- Improve mobile layout and progress accessibility; retain original cutting and printer logic.
+- Add appearance regression tests and a standalone, non-printing UI preview. See `UX-UI-REVIEW.md`.
+
+The production bundling step and physical PixCut S1 operation have not been verified here. Printer testing remains open.
+
+
+## 1.0.1 — safety and test reliability
+
+- Explain when a fully opaque sheet cannot define cut lines; refuse to print when tracing produced no actual cutting paths. A non-empty PLT header alone is insufficient.
+- Detect the tracer's 100-contour limit and refuse incomplete jobs rather than silently omitting cuts. Developers can raise the limit through `traceSheet` overrides; this is **not** a tested printer capability.
+- Prevent Arrange from moving stickers into an overlapping overflow layout when the shelf packer cannot fit everything.
+- Prevent a stale trace or failed recomputation being sent when Print is clicked; capture the cut file before asynchronous JPEG encoding.
+- Fix `npm test` for supported Node 22 runtimes and add regression cases.
+- Match both vendor and product ID when connecting to a newly plugged-in USB device.
+
+The hardware protocol, sheet geometry, margin and knife-pressure defaults, print encoding and upload sequence are unchanged. No physical printer test has been run. The 1.0.1 archive is a local review build, not an official upstream release.
+
+## Remaining priorities
+
+- Add reliable cancellation and a bounded run-state timeout, using a mocked transport first and real S1 hardware before release.
+- Add optional save/open project files (including source artwork) and restore without changing print output.
+- Warn about manual sticker overlaps, and replace the basic shelf packer with an improved packing algorithm while allowing intentional overlaps.
+- Offer an explicit import mode for full sheets, so a similarly shaped sticker isn't misclassified.
+- Test cut geometry and printer alignment on real stock before adding new media or pressure presets.
