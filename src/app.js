@@ -1,13 +1,14 @@
 import { PixCut, SHEET, MAX_JPEG_BYTES, describeAlerts } from './protocol.js';
-import { traceSheet, padToRaster, CUT_DEFAULTS } from './cut.js';
+import { traceSheet, padToRaster, CUT_DEFAULTS, hasPrintableCut } from './cut.js';
 import * as usb from './webusb.js';
+import { installAppearanceControls } from './appearance.js';
 
 const $ = (id) => document.getElementById(id);
 const PX_PER_MM = 300 / 25.4;
 const EDGE = Math.round(3 * PX_PER_MM); // keep art this far from the sheet edge
 const HANDLE = 44; // resize handle size, sheet px
 
-/* ═══ theme: one accent, one dark, contrast >= 5.5 ═══ */
+/* ═══ original Simple-mode accent; alternative looks are cosmetic ═══ */
 const lin = (c) => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
@@ -26,10 +27,14 @@ function generatePair() {
   return { accent: [168, 139, 250], dark: [3, 7, 18] };
 }
 const theme = generatePair();
-document.documentElement.style.setProperty('--a', theme.accent.join(','));
-document.documentElement.style.setProperty('--d', theme.dark.join(','));
-document.querySelector('meta[name=theme-color]').content = `rgb(${theme.dark.join(',')})`;
-const A = `rgb(${theme.accent.join(',')})`, D = `rgb(${theme.dark.join(',')})`;
+document.documentElement.style.setProperty('--simple-a', theme.accent.join(','));
+document.documentElement.style.setProperty('--simple-d', theme.dark.join(','));
+let A, D; // Canvas colours follow the selected appearance, not a print setting.
+function updateCanvasPalette() {
+  const css = getComputedStyle(document.body);
+  A = css.getPropertyValue('--cut-highlight').trim();
+  D = css.getPropertyValue('--cut-ink').trim();
+}
 
 /* ═══ settings ═══ */
 const store = {
@@ -42,6 +47,9 @@ const settings = {
   cutHoles: store.get('cutHoles', CUT_DEFAULTS.cutHoles),
   showCut: store.get('showCut', true),
 };
+// Cosmetic appearance is deliberately independent of persisted cutting settings.
+installAppearanceControls({ store, onChange: () => { updateCanvasPalette(); render(); } });
+updateCanvasPalette();
 
 /* ═══ stickers ═══ */
 let stickers = []; // {id, name, bmp, sw, sh, s (sheet px per source px), rot (quarter turns), x, y}
@@ -84,15 +92,19 @@ function arrange() {
   const gap = gapPx();
   const order = stickers.filter((k) => !k.sheet).sort((a, b) => bbox(b).h - bbox(a).h);
   let x = EDGE, y = EDGE, rowH = 0, overflow = 0;
+  const placements = [];
   for (const k of order) {
     const b = bbox(k);
     if (x + b.w > SHEET.w - EDGE && x > EDGE) { x = EDGE; y += rowH + gap; rowH = 0; }
-    k.x = x; k.y = y;
     if (y + b.h > SHEET.h - EDGE) overflow++;
+    placements.push({ k, x, y });
     x += b.w + gap; rowH = Math.max(rowH, b.h);
-    clampInto(k);
   }
-  if (overflow) log(`${overflow} sticker(s) don't fit; they overlap the bottom edge. Shrink something or remove one.`);
+  if (overflow) {
+    log(`${overflow} sticker(s) don't fit. The current layout has been kept; shrink something or remove one.`);
+    return;
+  }
+  for (const p of placements) { p.k.x = p.x; p.k.y = p.y; }
   changed();
 }
 
@@ -152,7 +164,7 @@ async function addFiles(files) {
         const k = { id: nextId++, name, bmp: src, sw: src.width, sh: src.height, s: SHEET.h / Math.max(src.width, src.height), rot: land ? 1 : 0, x: 0, y: 0, sheet: true };
         const t = await trimmed(src);
         if (!t) { log(`${f.name}: fully transparent, skipped`); continue; }
-        if (t.opaque) log(`${f.name}: full sheet with no transparency, so the cut is the whole sheet; use a transparent background`);
+        if (t.opaque) log(`${f.name}: the entire sheet is opaque, so there is no cut outline; add transparency before printing`);
         else log(`${f.name}: full 4×7 sheet, placed as drawn${land ? ' (rotated to portrait)' : ''}`);
         stickers.push(k);
         selected = k;
@@ -245,6 +257,7 @@ function render() {
 let traceTimer = 0;
 function scheduleTrace(ms = 120) {
   cutStale = true;
+  updateButtons(); // disable printing until the new path has been validated
   clearTimeout(traceTimer);
   traceTimer = setTimeout(runTrace, ms);
 }
@@ -260,9 +273,11 @@ function runTrace() {
     cut = traceSheet(compositeRaster(), settings);
     cutStale = false;
     const s = cut.stats;
-    $('cutStats').textContent = s
-      ? `${s.pathCount} path${s.pathCount === 1 ? '' : 's'} · ${s.pointCount} points · ${(s.cutLengthMm / 10).toFixed(1)} cm of cut · traced in ${Math.round(performance.now() - t0)} ms`
-      : 'nothing to cut';
+    $('cutStats').textContent = !hasPrintableCut(cut) && stickers.length
+      ? 'No cutting paths detected. Enlarge the artwork or increase the border before printing.'
+      : s
+        ? `${s.pathCount} path${s.pathCount === 1 ? '' : 's'} · ${s.pointCount} points · ${(s.cutLengthMm / 10).toFixed(1)} cm of cut · traced in ${Math.round(performance.now() - t0)} ms`
+        : 'nothing to cut';
   } catch (e) {
     cut = null;
     $('cutStats').textContent = `trace failed: ${e.message}`;
@@ -282,7 +297,8 @@ function changed() {
 function renderList() {
   const ul = $('list');
   ul.textContent = '';
-  $('count').textContent = stickers.length ? String(stickers.length) : '';
+  $('count').textContent = stickers.length ? `${stickers.length} added` : '';
+  $('listEmpty').hidden = stickers.length > 0;
   for (const k of stickers) {
     const b = bbox(k);
     const li = document.createElement('li');
@@ -308,7 +324,7 @@ function renderList() {
     hIn.onchange = () => resize(+hIn.value, bbox(k).h);
     const acts = document.createElement('div');
     acts.className = 'acts';
-    acts.innerHTML = `<button class="btn icon" title="rotate (R)">&#8635;</button><button class="btn icon" title="duplicate (D)">&#10697;</button><button class="btn icon" title="remove (del)">&#10005;</button>`;
+    acts.innerHTML = `<button type="button" class="btn icon" title="Rotate (R)" aria-label="Rotate sticker">&#8635;</button><button type="button" class="btn icon" title="Duplicate (D)" aria-label="Duplicate sticker">&#10697;</button><button type="button" class="btn icon" title="Remove (Delete)" aria-label="Remove sticker">&#10005;</button>`;
     const [rotB, dupB, delB] = acts.children;
     rotB.onclick = (e) => { e.stopPropagation(); rotate(k); };
     dupB.onclick = (e) => { e.stopPropagation(); duplicate(k); };
@@ -399,7 +415,7 @@ view.addEventListener('pointerup', endDrag);
 view.addEventListener('pointercancel', endDrag);
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') return;
+  if (e.target.closest('input, textarea, select, button, [contenteditable="true"]') || $('helpDialog').open) return;
   const k = selected;
   if (!k) return;
   const step = (e.shiftKey ? 5 : 1) * PX_PER_MM;
@@ -534,24 +550,28 @@ $('connectBtn').onclick = async () => {
 };
 
 $('printBtn').onclick = async () => {
-  if (!conn || !cut?.plt || printing) return;
+  if (!conn || printing) return;
+  // A button click can race a debounced trace; never upload an old or empty path.
+  if (cutStale) runTrace();
+  if (!hasPrintableCut(cut)) { log('no valid cut paths; print cancelled'); return; }
   const abort = new AbortController();
   printing = { abort, jobId: null };
   updateButtons();
   setPill(`${conn.info.model} · printing`, 'busy');
   const bar = $('progress').firstElementChild;
   try {
-    if (cutStale) runTrace();
-    const jpeg = await buildJpeg();
+    // Both outputs must represent the same design, even if the user edits mid-encode.
     const plt = pltBytes();
+    const jpeg = await buildJpeg();
     log(`sending ${(jpeg.length / 1024).toFixed(0)} KiB image + ${plt.length} B cut path (KP${settings.knifePressure})`);
     const res = await conn.px.printAndCut(jpeg, plt, {
       signal: abort.signal,
       onStatus: (s) => {
         if (s.jobId) printing.jobId = s.jobId;
         $('jobText').textContent = s.text;
-        if (s.progress != null) bar.style.width = `${Math.round(s.progress * 100)}%`;
-        else if (s.phase === 'run') bar.style.width = '100%';
+        const percentage = s.progress != null ? Math.round(s.progress * 100) : s.phase === 'run' ? 100 : 0;
+        bar.style.width = `${percentage}%`;
+        $('progress').setAttribute('aria-valuenow', String(percentage));
       },
     });
     log(`job ${res.jobId} done${res.cut ? ', printed and cut' : ' (no cut phase seen; check the sheet)'}`);
@@ -562,6 +582,7 @@ $('printBtn').onclick = async () => {
   } finally {
     printing = null;
     bar.style.width = '0';
+    $('progress').setAttribute('aria-valuenow', '0');
     updateButtons();
     pollStatus();
   }
@@ -575,12 +596,21 @@ $('cancelBtn').onclick = async () => {
 };
 
 function updateButtons() {
-  const hasCut = !!cut?.plt && stickers.length > 0;
+  const hasCut = !cutStale && hasPrintableCut(cut) && stickers.length > 0;
   $('printBtn').disabled = !conn || !hasCut || !!printing;
-  $('printBtn').title = !conn ? 'connect the printer first' : !hasCut ? 'add a sticker first' : '';
+  let reason;
+  if (printing) reason = 'Job running. You can cancel it below.';
+  else if (!stickers.length) reason = 'Add transparent artwork to create a cut path.';
+  else if (cutStale) reason = 'Updating the cut preview…';
+  else if (!hasCut) reason = 'No usable cut paths yet. Check your artwork and cut preview.';
+  else if (!usb.supported()) reason = 'Use Chrome or Edge over HTTPS or localhost for printer access. Exports remain available.';
+  else if (!conn) reason = 'Cut path ready. Connect your PixCut S1, or export the files below.';
+  else reason = 'Ready to print and cut. Check the preview before starting.';
+  $('printHint').textContent = reason;
+  $('printBtn').title = $('printBtn').disabled ? reason : 'Send this sheet to your connected printer';
   $('jpgBtn').disabled = $('pltBtn').disabled = !hasCut;
   $('cancelBtn').hidden = !printing;
-  $('connectBtn').textContent = conn ? 'disconnect' : 'connect';
+  $('connectBtn').textContent = conn ? 'Disconnect' : 'Connect printer';
   $('connectBtn').disabled = !usb.supported() || !!printing;
 }
 
@@ -595,7 +625,7 @@ if (!usb.supported()) {
     if (conn && e.device === conn.device) { log('printer unplugged'); conn = null; printing?.abort.abort(); clearTimeout(pollTimer); setPill('no printer'); updateButtons(); }
   });
   navigator.usb.addEventListener('connect', async (e) => {
-    if (!conn && e.device.vendorId === 0x302c) connect(e.device);
+    if (!conn && e.device.vendorId === 0x302c && e.device.productId === 0x3101) connect(e.device);
   });
   usb.findGranted().then((d) => d && connect(d));
 }

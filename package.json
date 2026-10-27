@@ -1,9 +1,9 @@
 {
   "name": "brencut",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Print and kiss-cut transparent PNG sticker sheets on a Liene PixCut S1, straight from the browser over WebUSB",
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "node --experimental-strip-types --test test/*.test.mjs",
     "build": "node build.mjs",
     "dev": "node build.mjs --serve"
   },
@@ -17,7 +17,13 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LTKMN/brencut.git"
+    "url": "git+https://github.com/TABARC-Code/brencut-redux.git"
   },
-  "homepage": "https://brencut.brennan.computer"
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "author": "TABARC-Code",
+  "bugs": {
+    "url": "https://github.com/TABARC-Code/brencut-redux/issues"
+  }
 }

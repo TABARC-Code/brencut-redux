@@ -2,6 +2,8 @@
 import { generateCutPath } from '../vendor/pixcut-trace/generate.ts';
 import { SHEET } from './protocol.js';
 
+export const MAX_CUT_CONTOURS = 100;
+
 export const CUT_DEFAULTS = {
   marginMm: 1.5, // white border grown around each sticker's opaque pixels
   // Knife pressure, 1..100. The official app sends 42 for Liene sticker media (per popcornhax);
@@ -20,19 +22,43 @@ export function traceSheet(raster, opts = {}) {
   if (raster.width !== SHEET.w || raster.height !== SHEET.h) {
     throw new Error(`sheet raster must be ${SHEET.w}x${SHEET.h}, got ${raster.width}x${raster.height}`);
   }
-  let any = false;
-  for (let i = 3; i < raster.data.length; i += 4) if (raster.data[i] >= o.alphaThreshold) { any = true; break; }
+  let any = false, transparent = false;
+  for (let i = 3; i < raster.data.length; i += 4) {
+    const alpha = raster.data[i];
+    if (alpha >= o.alphaThreshold) any = true;
+    if (alpha < 255) transparent = true;
+    if (any && transparent) break;
+  }
   if (!any) return { plt: '', contours: [], paths: [], stats: null };
+  if (!transparent) {
+    throw new Error('The entire sheet is opaque. Add transparency to define a cutting outline.');
+  }
 
+  // The upstream tracer silently returns only its largest 100 regions. Trace one
+  // beyond the configured limit so an incomplete sheet is an error, not a print job.
+  const maxContours = o.overrides?.maxContours ?? MAX_CUT_CONTOURS;
+  if (!Number.isSafeInteger(maxContours) || maxContours < 1 || maxContours > 1000) {
+    throw new Error('maxContours must be a whole number from 1 to 1000');
+  }
+  const { maxContours: _configuredLimit, ...overrides } = o.overrides ?? {};
   const r = generateCutPath(raster, {
     binarize: { mode: 'alpha', alphaThreshold: o.alphaThreshold },
     dilation: Math.max(0, o.marginMm),
     knifePressure: Math.round(o.knifePressure),
     includeHoles: o.cutHoles,
     fillMethod: 'fit', // the raster is exactly the 4x7 cut canvas, so the scale is 1 before overscan
-    ...(o.overrides ?? {}),
+    ...overrides,
+    maxContours: maxContours + 1,
   });
+  if (r.contours.length > maxContours) {
+    throw new Error(`More than ${maxContours} separate cut outlines detected. Split the sheet or reduce the number of stickers; printing an incomplete cut is disabled.`);
+  }
   return { plt: r.plt, contours: r.contours, paths: r.document.paths, stats: r.stats };
+}
+
+/** A PLT header and parking move alone do not make a printable cut. */
+export function hasPrintableCut(cut) {
+  return Boolean(cut?.plt && cut?.paths?.length > 0);
 }
 
 /** Pad a 1200x2100 RGB(A) sheet to the printer's 1216x2128 raster on white. Returns RGBA bytes. */
