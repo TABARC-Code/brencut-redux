@@ -173,7 +173,10 @@ export class PixCut {
   }
 
   async cancel(jobId) {
-    return this.request('cancel-job', { 'job-id': Number(jobId) });
+    const reply = await this.request('cancel-job', { 'job-id': Number(jobId) });
+    const code = reply?.error?.code ?? reply?.result?.['error-code'] ?? reply?.['error-code'];
+    if (code != null && Number(code) !== 0) throw new Error(`printer rejected cancellation (${code})`);
+    return reply;
   }
 
   async activeJobs() {
@@ -239,6 +242,7 @@ export class PixCut {
   async printAndCut(jpeg, plt, { onStatus = () => {}, signal, runTimeoutMs = 30 * 60 * 1000, pollIntervalMs = 2000, chunkTimeoutMs = 10000 } = {}) {
     if (this.needsReconnect) throw new Error('Reconnect the printer after an interrupted transfer before starting another job');
     let jobId;
+    let declarationStarted = false;
     try {
       checkCancel(signal);
       if (jpeg.length > MAX_JPEG_BYTES) throw new Error(`print image is ${jpeg.length} bytes; the printer takes at most 1 MiB`);
@@ -249,6 +253,7 @@ export class PixCut {
 
       onStatus({ phase: 'declare', text: 'declaring job' });
       checkCancel(signal);
+      declarationStarted = true;
       jobId = await this.createComboJob(jpeg, plt);
       checkCancel(signal);
 
@@ -293,7 +298,7 @@ export class PixCut {
         }
       }
     } catch (error) {
-      if (jobId != null) this.needsReconnect = true;
+      if (declarationStarted) this.needsReconnect = true;
       if (signal?.aborted) {
         if (jobId != null) {
           try {
@@ -302,7 +307,9 @@ export class PixCut {
             throw new Error(`job ${jobId}: cancellation requested, but the printer did not acknowledge it: ${cancelError.message}`, { cause: cancelError });
           }
         }
-        throw new Error(jobId == null ? 'print cancelled before job started' : `job ${jobId}: cancellation sent; confirm the printer has stopped`, { cause: error });
+        throw new Error(jobId == null
+          ? (declarationStarted ? 'cancellation requested while declaring a job; printer state unconfirmed. Reconnect and inspect the printer' : 'print cancelled before job started')
+          : `job ${jobId}: cancellation sent; confirm the printer has stopped`, { cause: error });
       }
       if (jobId != null && !new RegExp(`job ${jobId} (cancelled|aborted)`).test(error.message)) {
         try {

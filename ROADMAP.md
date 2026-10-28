@@ -1,7 +1,7 @@
 # BrenCut Redux — development notes
 
 Maintainer: TABARC-Code  
-Working baseline: 1.2.3
+Working baseline: 1.2.8
 
 Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and three appearance options stable unless tests or hardware evidence justify a change. Make each release buildable before moving on. The machine gets the final say.
 
@@ -20,6 +20,8 @@ Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and thre
 - Simulated cancellation cases cover blocked reads and writes. Physical stop timing remains unverified.
 
 ## v1.2.3 — Bounded transfer and recovery [DONE]
+
+Follow-up v1.2.8 [DONE]: declaration timeout now leaves the connection marked uncertain; cancellation error replies are not mistaken for success.
 
 - Bound time waiting for a printer job; make failure and retry states legible. Reconnect after an interrupted transfer.
 - Add simulated USB tests for a blocked transfer, lost connection, a cancelled upload and recovery.

@@ -4,7 +4,7 @@ A small browser-based workspace for preparing sticker sheets and cutting them on
 
 This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-**Version:** 1.2.3  
+**Version:** 1.2.8  
 **Status:** Development release. Software checks pass; cancellation and bounded transfer recovery have simulated transport tests; physical PixCut S1 confirmation remains outstanding.
 
 ## Getting started
@@ -61,7 +61,7 @@ The current automated checks cover only simulated code paths. They do not replac
 - Arrange uses a basic row layout. If it can't fit the artwork, it leaves the previous arrangement alone. Better packing is in the plan.
 - Cancel stops scheduling further upload chunks and sends a single cancel command once the printer has assigned a job number. Already-started USB transfers cannot be recalled, and the printer may continue moving. Confirm it has stopped before handling the sheet. A failed or interrupted transfer requires disconnecting and reconnecting before sending another job.
 
-USB writes, acknowledgements and printer status requests now have finite timeouts. Lost status replies are retried without resending image or cut-path chunks; after repeated failures, BrenCut requests cancellation and asks for a fresh connection. The printer's actual state remains uncertain after a disconnection.
+USB writes, acknowledgements and printer status requests now have finite timeouts. Lost status replies are retried without resending image or cut-path chunks; after repeated failures, BrenCut requests cancellation and asks for a fresh connection. The printer's actual state remains uncertain after a disconnection, or if job declaration times out before the printer returns its job number. Cancellation error replies are also reported rather than treated as success.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for changes and [`ROADMAP.md`](ROADMAP.md) for the staged work: safe cancellation, project files, a proper cutting preflight, better packing, explicit sheet import and editing conveniences.
 

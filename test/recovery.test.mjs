@@ -82,3 +82,39 @@ test('disconnect wakes a blocked WebUSB reader', async () => {
   await close();
   await assert.rejects(pending, /USB connection closed/);
 });
+
+test('cancellation during an unconfirmed declaration requires a fresh connection', async () => {
+  const c = new AbortController();
+  let declared = false;
+  const io = {
+    async write(ep, bytes) {
+      const command = JSON.parse(dec.decode(bytes).split('\n').slice(1).join('\n'));
+      if (command.method === 'combo-job') { declared = true; setTimeout(() => c.abort(), 5); }
+    },
+    read: () => new Promise(() => {}),
+  };
+  const px = new PixCut(io, () => {}, { requestTimeoutMs: 20 });
+  // Preflight succeeds, but the printer never replies to the job declaration.
+  let id = 0;
+  io.read = async () => {
+    if (id++ === 0) return enc.encode(JSON.stringify({ id: px.nextId - 1, result: [
+      { 'printer-state': 20 }, { 'printer-sub-state': 2000 }, { 'printer-state-alerts': '::0' },
+    ] }));
+    return new Promise(() => {});
+  };
+  await assert.rejects(px.printAndCut(new Uint8Array(10), new Uint8Array(10), { signal: c.signal }), /printer state unconfirmed/);
+  assert.equal(declared, true);
+  assert.equal(px.needsReconnect, true);
+});
+
+test('a rejected cancel reply is reported as an error', async () => {
+  const queue = [];
+  const io = {
+    async write(_ep, bytes) {
+      const cmd = JSON.parse(dec.decode(bytes).split('\n').slice(1).join('\n'));
+      queue.push(enc.encode(JSON.stringify({ id: cmd.id, result: { 'error-code': 19 } })));
+    },
+    async read() { return queue.shift() ?? new Uint8Array(); },
+  };
+  await assert.rejects(new PixCut(io).cancel(42), /printer rejected cancellation \(19\)/);
+});

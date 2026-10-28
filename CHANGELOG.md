@@ -1,5 +1,13 @@
 # Changes
 
+## 1.2.8 — uncertain job declaration
+
+- Distinguish an early cancellation from a cancellation requested while the printer may already have created a job.
+- Require reconnecting when job declaration fails without a confirmed job number; do not claim that an unknown job never started.
+- Report printer cancellation error replies rather than treating them as accepted.
+- Add tests for an unconfirmed declaration and a rejected cancellation response. Physical printer behaviour remains unverified.
+
+
 ## 1.2.3 — bounded transfers and status recovery
 
 - Cap USB command writes, replies, chunk writes and acknowledgements. A stuck transfer no longer holds the interface indefinitely.
