@@ -107,9 +107,11 @@ export function describeAlerts(codes) {
 }
 
 export class PixCut {
-  constructor(io, log = () => {}) {
+  constructor(io, log = () => {}, { requestTimeoutMs = 10000 } = {}) {
     this.io = io;
     this.log = log;
+    this.requestTimeoutMs = requestTimeoutMs;
+    this.needsReconnect = false;
     this.nextId = (Date.now() & 0x7fff) + 1;
     this.pending = '';
     this.busy = Promise.resolve();
@@ -119,11 +121,12 @@ export class PixCut {
   request(method, params) {
     const run = async () => {
       const id = this.nextId++;
-      await this.io.write(CTRL.out, frameJson({ id, method, params }));
-      const deadline = Date.now() + 10000;
+      await waitFor(this.io.write(CTRL.out, frameJson({ id, method, params })), { timeoutMs: this.requestTimeoutMs, label: `${method} command write` });
+      const deadline = Date.now() + this.requestTimeoutMs;
       while (Date.now() < deadline) {
-        const chunk = await this.io.read(CTRL.in, 4096, Math.max(100, deadline - Date.now()));
-        if (!chunk?.length) continue;
+        const remaining = Math.max(100, deadline - Date.now());
+        const chunk = await waitFor(this.io.read(CTRL.in, 4096, remaining), { timeoutMs: remaining, label: `${method} reply` });
+        if (!chunk?.length) { await pause(20); continue; }
         const [objs, rest] = takeJson(this.pending + dec.decode(chunk));
         this.pending = rest.length > 65536 ? '' : rest;
         for (const o of objs) {
@@ -135,7 +138,7 @@ export class PixCut {
       throw new Error(`no reply to ${method}`);
     };
     const p = this.busy.then(run, run);
-    this.busy = p.catch(() => {});
+    this.busy = p.catch(() => { this.pending = ''; });
     return p;
   }
 
@@ -203,18 +206,19 @@ export class PixCut {
   }
 
   /** Upload one file, checking cancellation before and after every transfer. */
-  async upload(payload, jobId, onProgress = () => {}, { signal } = {}) {
+  async upload(payload, jobId, onProgress = () => {}, { signal, chunkTimeoutMs = 10000 } = {}) {
     const chunks = [...frameData(payload, jobId)];
     for (let i = 0; i < chunks.length; i++) {
       checkCancel(signal);
-      await waitFor(this.io.write(DATA.out, chunks[i]), { signal });
+      await waitFor(this.io.write(DATA.out, chunks[i]), { signal, timeoutMs: chunkTimeoutMs, label: 'data chunk write' });
       checkCancel(signal);
       let ack = '';
-      const deadline = Date.now() + 10000;
+      const deadline = Date.now() + chunkTimeoutMs;
       while (!/\b(OK|ER)\b/.test(ack)) {
         checkCancel(signal);
         if (Date.now() > deadline) throw new Error(`no acknowledgement for chunk ${i + 1}/${chunks.length}`);
-        const r = await waitFor(this.io.read(DATA.in, 4096, Math.max(100, deadline - Date.now())), { signal });
+        const remaining = Math.max(100, deadline - Date.now());
+        const r = await waitFor(this.io.read(DATA.in, 4096, remaining), { signal, timeoutMs: remaining, label: 'data acknowledgement' });
         checkCancel(signal);
         if (r?.length) ack += dec.decode(r);
         const [objs, rest] = takeJson(ack);
@@ -232,7 +236,8 @@ export class PixCut {
    * Run a full print-and-cut: declare, upload PLT then JPEG, poll until done.
    * `onStatus({phase, text, progress})` reports along the way. `signal` (AbortSignal) cancels.
    */
-  async printAndCut(jpeg, plt, { onStatus = () => {}, signal } = {}) {
+  async printAndCut(jpeg, plt, { onStatus = () => {}, signal, runTimeoutMs = 30 * 60 * 1000, pollIntervalMs = 2000, chunkTimeoutMs = 10000 } = {}) {
+    if (this.needsReconnect) throw new Error('Reconnect the printer after an interrupted transfer before starting another job');
     let jobId;
     try {
       checkCancel(signal);
@@ -249,24 +254,28 @@ export class PixCut {
 
       const total = plt.length + jpeg.length;
       onStatus({ phase: 'upload', text: `job ${jobId}: sending cut path`, progress: 0, jobId });
-      await this.upload(plt, jobId, (f) => onStatus({ phase: 'upload', text: `job ${jobId}: sending cut path`, progress: (f * plt.length) / total, jobId }), { signal });
+      await this.upload(plt, jobId, (f) => onStatus({ phase: 'upload', text: `job ${jobId}: sending cut path`, progress: (f * plt.length) / total, jobId }), { signal, chunkTimeoutMs });
       checkCancel(signal);
       onStatus({ phase: 'upload', text: `job ${jobId}: sending image`, progress: plt.length / total, jobId });
-      await this.upload(jpeg, jobId, (f) => onStatus({ phase: 'upload', text: `job ${jobId}: sending image`, progress: (plt.length + f * jpeg.length) / total, jobId }), { signal });
+      await this.upload(jpeg, jobId, (f) => onStatus({ phase: 'upload', text: `job ${jobId}: sending image`, progress: (plt.length + f * jpeg.length) / total, jobId }), { signal, chunkTimeoutMs });
 
+      const runDeadline = Date.now() + runTimeoutMs;
       let sawCut = false;
       let idleAfterDone = 0;
       let missed = 0;
       for (;;) {
         checkCancel(signal);
-        await pause(2000, signal);
+        if (Date.now() >= runDeadline) throw new Error(`job ${jobId} exceeded the run timeout`);
+        await pause(Math.min(pollIntervalMs, Math.max(1, runDeadline - Date.now())), signal);
+        if (Date.now() >= runDeadline) throw new Error(`job ${jobId} exceeded the run timeout`);
         let st, info;
         try {
           st = await this.status();
           info = await this.jobInfo(jobId);
           missed = 0;
         } catch (e) {
-          if (++missed >= 5) throw e;
+          if (++missed >= 5) throw new Error(`job ${jobId}: status unavailable after ${missed} attempts: ${e.message}`, { cause: e });
+          onStatus({ phase: 'recover', text: `job ${jobId}: status check failed, retrying (${missed}/5)`, jobId });
           continue;
         }
         if (st.sub >= 3028 && st.sub <= 3031) sawCut = true;
@@ -284,6 +293,7 @@ export class PixCut {
         }
       }
     } catch (error) {
+      if (jobId != null) this.needsReconnect = true;
       if (signal?.aborted) {
         if (jobId != null) {
           try {
@@ -293,6 +303,14 @@ export class PixCut {
           }
         }
         throw new Error(jobId == null ? 'print cancelled before job started' : `job ${jobId}: cancellation sent; confirm the printer has stopped`, { cause: error });
+      }
+      if (jobId != null && !new RegExp(`job ${jobId} (cancelled|aborted)`).test(error.message)) {
+        try {
+          await this.cancel(jobId);
+        } catch (cancelError) {
+          throw new Error(`job ${jobId}: ${error.message}; cancellation could not be confirmed: ${cancelError.message}`, { cause: error });
+        }
+        throw new Error(`job ${jobId}: ${error.message}; cancellation requested. Reconnect before another job`, { cause: error });
       }
       throw error;
     }

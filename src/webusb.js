@@ -30,13 +30,18 @@ class InPipe {
     }
   }
   push(chunk) {
+    if (chunk === null) {
+      this.queue.length = 0;
+      for (const waiter of this.waiters.splice(0)) waiter(null);
+      return;
+    }
     const w = this.waiters.shift();
     if (w) w(chunk);
     else this.queue.push(chunk);
   }
   read(timeoutMs) {
-    if (this.queue.length) return Promise.resolve(this.queue.shift());
     if (this.error) return Promise.reject(this.error);
+    if (this.queue.length) return Promise.resolve(this.queue.shift());
     return new Promise((res, rej) => {
       const done = (c) => {
         clearTimeout(t);
@@ -53,6 +58,8 @@ class InPipe {
   }
   stop() {
     this.alive = false;
+    this.error ??= new Error('USB connection closed');
+    this.push(null);
   }
 }
 

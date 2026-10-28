@@ -596,9 +596,11 @@ $('cancelBtn').onclick = () => {
 
 function updateButtons() {
   const hasCut = !cutStale && hasPrintableCut(cut) && stickers.length > 0;
-  $('printBtn').disabled = !conn || !hasCut || !!printing;
+  const reconnectNeeded = !!conn?.px?.needsReconnect;
+  $('printBtn').disabled = !conn || !hasCut || !!printing || reconnectNeeded;
   let reason;
   if (printing) reason = 'Job running. You can cancel it below.';
+  else if (reconnectNeeded) reason = 'The last transfer was interrupted. Disconnect and reconnect the printer before another job.';
   else if (!stickers.length) reason = 'Add transparent artwork to create a cut path.';
   else if (cutStale) reason = 'Updating the cut preview…';
   else if (!hasCut) reason = 'No usable cut paths yet. Check your artwork and cut preview.';

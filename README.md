@@ -4,8 +4,8 @@ A small browser-based workspace for preparing sticker sheets and cutting them on
 
 This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-**Version:** 1.1.7  
-**Status:** Development release. Software checks pass; cancellation now has simulated transport tests; physical PixCut S1 confirmation remains outstanding.
+**Version:** 1.2.3  
+**Status:** Development release. Software checks pass; cancellation and bounded transfer recovery have simulated transport tests; physical PixCut S1 confirmation remains outstanding.
 
 ## Getting started
 
@@ -59,7 +59,9 @@ The current automated checks cover only simulated code paths. They do not replac
 - Cut tracing has a **100-contour limit**. If there are too many separate shapes the job is refused rather than silently dropping cuts.
 - Very small artwork can disappear during tracing. Increase its size or adjust the border, then check the preview.
 - Arrange uses a basic row layout. If it can't fit the artwork, it leaves the previous arrangement alone. Better packing is in the plan.
-- Cancel stops scheduling further upload chunks and sends a single cancel command once the printer has assigned a job number. Already-started USB transfers cannot be recalled, and the printer may continue moving. Confirm it has stopped before handling the sheet.
+- Cancel stops scheduling further upload chunks and sends a single cancel command once the printer has assigned a job number. Already-started USB transfers cannot be recalled, and the printer may continue moving. Confirm it has stopped before handling the sheet. A failed or interrupted transfer requires disconnecting and reconnecting before sending another job.
+
+USB writes, acknowledgements and printer status requests now have finite timeouts. Lost status replies are retried without resending image or cut-path chunks; after repeated failures, BrenCut requests cancellation and asks for a fresh connection. The printer's actual state remains uncertain after a disconnection.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for changes and [`ROADMAP.md`](ROADMAP.md) for the staged work: safe cancellation, project files, a proper cutting preflight, better packing, explicit sheet import and editing conveniences.
 

@@ -1,5 +1,14 @@
 # Changes
 
+## 1.2.3 — bounded transfers and status recovery
+
+- Cap USB command writes, replies, chunk writes and acknowledgements. A stuck transfer no longer holds the interface indefinitely.
+- Retry status polling after transient failures without resending print or cut data; stop after repeated failures or a run timeout.
+- Request cancellation after a failed declared job and require a fresh printer connection before another attempt. If the connection is gone, the physical job state cannot be confirmed.
+- Wake waiting USB readers on disconnect and clear queued data from a closed connection.
+- Add simulated stalled acknowledgement, status retry, disconnect and timeout cases. No physical printer test has been carried out.
+
+
 ## 1.1.7 — cancellation during transfer
 
 - Stop queuing further cut-path or image chunks when Cancel is pressed, including while a USB read or write is waiting.
