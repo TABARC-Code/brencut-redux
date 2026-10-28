@@ -1,7 +1,7 @@
 # BrenCut Redux — development notes
 
 Maintainer: TABARC-Code  
-Working baseline: 1.1.0
+Working baseline: 1.1.7
 
 Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and three appearance options stable unless tests or hardware evidence justify a change. Make each release buildable before moving on. The machine gets the final say.
 
@@ -13,10 +13,14 @@ Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and thre
 - Safety checks for empty cuts, 100-contour overflow and failed arrangements.
 - Existing hardware behaviour intentionally left alone.
 
-## v1.2.0 — Transfer control and recovery [NEXT]
+## v1.1.7 — Cancellation [DONE]
 
-- Check cancellation between every upload chunk, during acknowledgements and before creating the job.
-- Keep one cancellation path and avoid duplicate cancel requests.
+- Stop scheduling further upload chunks after a cancellation request.
+- Send one cancellation command when the job ID is known.
+- Simulated cancellation cases cover blocked reads and writes. Physical stop timing remains unverified.
+
+## v1.2.3 — Bounded transfer and recovery [NEXT]
+
 - Bound time waiting for a printer job; make failure and retry states legible.
 - Add simulated USB tests for a blocked transfer, lost connection, a cancelled upload and recovery.
 - Do not claim the device will stop mid-cut until hardware testing proves it.

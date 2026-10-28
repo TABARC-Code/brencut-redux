@@ -587,12 +587,11 @@ $('printBtn').onclick = async () => {
     pollStatus();
   }
 };
-$('cancelBtn').onclick = async () => {
-  if (!printing) return;
+$('cancelBtn').onclick = () => {
+  if (!printing || printing.abort.signal.aborted) return;
   printing.abort.abort();
-  if (printing.jobId && conn) {
-    try { await conn.px.cancel(printing.jobId); log(`asked the printer to cancel job ${printing.jobId}`); } catch (e) { log(`cancel: ${e.message}`); }
-  }
+  $('jobText').textContent = 'Stopping upload and requesting cancellation…';
+  log('cancellation requested');
 };
 
 function updateButtons() {

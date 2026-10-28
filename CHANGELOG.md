@@ -1,5 +1,13 @@
 # Changes
 
+## 1.1.7 — cancellation during transfer
+
+- Stop queuing further cut-path or image chunks when Cancel is pressed, including while a USB read or write is waiting.
+- Send one `cancel-job` command after the printer assigns a job number; avoid duplicate commands from the interface.
+- Keep the printer's response separate from confirmation that the mechanism has physically stopped.
+- Add simulated cancellation tests for early abort, blocked acknowledgement and blocked write. No printer hardware was used.
+
+
 ## 1.1.0 — switchable interface styles and clearer workflow
 
 - Add Simple, Kawaii and Engineer appearance buttons with local preference persistence; these alter display styling only.
