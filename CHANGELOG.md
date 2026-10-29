@@ -1,5 +1,13 @@
 # Changes
 
+## 1.4.6 — preserve original artwork in project files
+
+- Save version 2 project documents with the imported original image alongside the cropped working bitmap, geometry and cutting settings.
+- Keep version 1 projects readable; their missing original files cannot be recovered retrospectively.
+- Validate the entire document, embedded image types, dimensions and placement before changing the current sheet.
+- Refuse overlapping import/open/save operations and update saved cutting preferences on project open.
+- Add project-format tests for round-trips, malformed inputs and legacy compatibility. Browser JPEG/PLT comparison and physical printer verification are still outstanding.
+
 ## 1.4.1 — explicit import mode
 
 - Default to importing individual stickers; matching a 4:7 ratio no longer silently turns an image into a full sheet.

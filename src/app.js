@@ -2,6 +2,7 @@ import { PixCut, SHEET, MAX_JPEG_BYTES, describeAlerts } from './protocol.js';
 import { traceSheet, padToRaster, CUT_DEFAULTS, hasPrintableCut } from './cut.js';
 import * as usb from './webusb.js';
 import { installAppearanceControls } from './appearance.js';
+import { PROJECT_LIMIT, SOURCE_MIMES, makeProjectDocument, validateProjectDocument } from './project.js';
 
 const $ = (id) => document.getElementById(id);
 const PX_PER_MM = 300 / 25.4;
@@ -57,6 +58,8 @@ updateCanvasPalette();
 let stickers = []; // {id, name, bmp, sw, sh, s (sheet px per source px), rot (quarter turns), x, y}
 let selected = null;
 let nextId = 1;
+let projectBusy = false;
+let importing = false;
 const bbox = (k) => {
   const w = k.sw * k.s, h = k.sh * k.s;
   return k.rot % 2 ? { w: h, h: w } : { w, h };
@@ -150,12 +153,16 @@ async function trimmed(bmp) {
 }
 
 async function addFiles(files) {
-  if (printing) { log('Wait for printing to finish before importing'); return; }
+  if (printing || projectBusy || importing) { log('Finish the current operation before importing'); return; }
+  importing = true;
+  try {
   const before = stickers.length;
   for (const f of files) {
-    if (!f.type.startsWith('image/')) continue;
+    if (!SOURCE_MIMES.has(f.type)) { log(`${f.name}: unsupported image format`); continue; }
     try {
+      if (f.size > 12 * 1024 * 1024) throw new Error('Original image exceeds 12 MiB');
       const buf = await f.arrayBuffer();
+      const sourceData = await blobToDataUrl(new Blob([buf], { type: f.type }));
       let src = await createImageBitmap(new Blob([buf], { type: f.type }));
       const name = f.name.replace(/\.[^.]+$/, '') || 'pasted';
       // A whole 4x7 sheet (either orientation) is placed exactly as drawn: no trim, no repacking.
@@ -166,7 +173,7 @@ async function addFiles(files) {
       const land = Math.abs(aspect - 7 / 4) < 0.01;
       if (settings.importMode === 'sheet') {
         if (!(land || Math.abs(aspect - 4 / 7) < 0.01)) throw new Error('Full-sheet import requires a 4:7 or 7:4 aspect ratio');
-        const k = { id: nextId++, name, bmp: src, sw: src.width, sh: src.height, s: SHEET.h / Math.max(src.width, src.height), rot: land ? 1 : 0, x: 0, y: 0, sheet: true };
+        const k = { id: nextId++, name, bmp: src, sw: src.width, sh: src.height, s: SHEET.h / Math.max(src.width, src.height), rot: land ? 1 : 0, x: 0, y: 0, sheet: true, sourceName: f.name.slice(0, 240), sourceData };
         const t = await trimmed(src);
         if (!t) { log(`${f.name}: fully transparent, skipped`); continue; }
         if (t.opaque) log(`${f.name}: the entire sheet is opaque, so there is no cut outline; add transparency before printing`);
@@ -179,7 +186,8 @@ async function addFiles(files) {
       if (!t) { log(`${f.name}: fully transparent, skipped`); continue; }
       if (t.opaque) log(`${f.name}: no transparency, so it cuts as a rectangle`);
       const dpi = pngDpi(buf) ?? 300;
-      const k = { id: nextId++, name, bmp: t.bmp, sw: t.w, sh: t.h, s: 300 / dpi, rot: 0, x: 0, y: 0 };
+      const k = { id: nextId++, name: name.slice(0, 240), bmp: t.bmp, sw: t.w, sh: t.h, s: 300 / dpi, rot: 0, x: 0, y: 0,
+        sourceName: f.name.slice(0, 240), sourceData };
       fitScale(k);
       const b = bbox(k);
       const spot = findSpot(b.w, b.h, stickers);
@@ -200,6 +208,7 @@ async function addFiles(files) {
       else $('printBtn').click();
     }
   }
+  } finally { importing = false; }
 }
 
 /* ═══ drawing ═══ */
@@ -508,13 +517,8 @@ const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
 $('jpgBtn').onclick = async () => { try { download(await buildJpeg(), `brencut-${stamp()}.jpg`, 'image/jpeg'); } catch (e) { log(e.message); } };
 $('pltBtn').onclick = () => download(pltBytes(), `brencut-${stamp()}.plt`, 'text/plain');
 
-/* Portable projects store the exact working bitmaps. The original uncropped uploads are not available. */
-const PROJECT_LIMIT = 40 * 1024 * 1024;
-async function bitmapPng(k) {
-  const c = new OffscreenCanvas(k.sw, k.sh);
-  c.getContext('2d').drawImage(k.bmp, 0, 0);
-  const blob = await c.convertToBlob({ type: 'image/png' });
-  if (blob.size > PROJECT_LIMIT) throw new Error('Artwork is too large for a project');
+/* Projects keep the working pixels and, where available, the original upload. */
+function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
@@ -522,75 +526,75 @@ async function bitmapPng(k) {
     reader.readAsDataURL(blob);
   });
 }
+async function bitmapPng(k) {
+  const c = new OffscreenCanvas(k.sw, k.sh);
+  c.getContext('2d').drawImage(k.bmp, 0, 0);
+  const blob = await c.convertToBlob({ type: 'image/png' });
+  if (blob.size > PROJECT_LIMIT) throw new Error('Artwork is too large for a project');
+  return blobToDataUrl(blob);
+}
 async function saveProject() {
-  if (printing) { log('Finish printing before saving'); return; }
+  if (printing || importing || projectBusy) { log('Finish the current operation before saving'); return; }
+  projectBusy = true;
   try {
     const items = [];
     for (const k of stickers) items.push({
       name: k.name, sw: k.sw, sh: k.sh, s: k.s, rot: k.rot, x: k.x, y: k.y,
       sheet: !!k.sheet, png: await bitmapPng(k),
+      source: k.sourceData ? { name: k.sourceName ?? k.name, data: k.sourceData } : null,
     });
-    const doc = { format: 'brencut-project', version: 1, sheet: [SHEET.w, SHEET.h],
-      cut: { marginMm: settings.marginMm, knifePressure: settings.knifePressure,
-        cutHoles: settings.cutHoles }, stickers: items };
+    const doc = makeProjectDocument(items, {
+      marginMm: settings.marginMm, knifePressure: settings.knifePressure,
+      cutHoles: settings.cutHoles,
+    }, SHEET);
     const payload = JSON.stringify(doc);
-    if (payload.length > PROJECT_LIMIT) throw new Error('Project exceeds 40 MiB');
     download(new TextEncoder().encode(payload), 'brencut-' + stamp() + '.brencut', 'application/json');
     log('Project saved (' + items.length + ' artwork items)');
   } catch (e) { log('Project save failed: ' + e.message); }
+  finally { projectBusy = false; }
 }
 async function openProject(file) {
-  if (printing) { log('Finish printing before opening a project'); return; }
+  if (printing || importing || projectBusy) { log('Finish the current operation before opening a project'); return; }
   if (!file || file.size > PROJECT_LIMIT) { log('Project rejected: file exceeds 40 MiB'); return; }
+  projectBusy = true;
   const decoded = [];
   try {
-    const doc = JSON.parse(await file.text());
-    if (doc?.format !== 'brencut-project' || doc.version !== 1 ||
-        !Array.isArray(doc.sheet) || doc.sheet[0] !== SHEET.w || doc.sheet[1] !== SHEET.h ||
-        !Array.isArray(doc.stickers) || doc.stickers.length > 100 ||
-        !doc.cut || typeof doc.cut !== 'object') throw new Error('Unsupported or malformed project');
-    const c = doc.cut;
-    if (!Number.isFinite(c.marginMm) || c.marginMm < 0 || c.marginMm > 10 ||
-        !Number.isInteger(c.knifePressure) || c.knifePressure < 1 || c.knifePressure > 100 ||
-        typeof c.cutHoles !== 'boolean') throw new Error('Invalid cutting settings');
+    // Check the whole document before allocating any image bitmaps.
+    const doc = validateProjectDocument(JSON.parse(await file.text()), SHEET);
     for (const item of doc.stickers) {
-      if (typeof item.name !== 'string' || item.name.length > 240 ||
-          !Number.isInteger(item.sw) || !Number.isInteger(item.sh) ||
-          item.sw < 1 || item.sh < 1 || item.sw * item.sh > 12000000 ||
-          !Number.isFinite(item.s) || item.s <= 0 ||
-          !Number.isInteger(item.rot) || item.rot < 0 || item.rot > 3 ||
-          !Number.isFinite(item.x) || !Number.isFinite(item.y) ||
-          typeof item.sheet !== 'boolean' ||
-          typeof item.png !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(item.png) ||
-          item.png.length > PROJECT_LIMIT) throw new Error('Invalid artwork record');
       const response = await fetch(item.png);
       const bmp = await createImageBitmap(await response.blob());
-      if (bmp.width !== item.sw || bmp.height !== item.sh) { bmp.close(); throw new Error('Artwork dimensions mismatch'); }
-      const k = { id: decoded.length + 1, name: item.name, bmp, sw: item.sw, sh: item.sh,
-        s: item.s, rot: item.rot, x: item.x, y: item.y, sheet: item.sheet };
-      const b = bbox(k);
-      if (k.x < 0 || k.y < 0 || k.x + b.w > SHEET.w + .01 || k.y + b.h > SHEET.h + .01)
-        throw new Error('Artwork extends beyond the sheet');
-      decoded.push(k);
+      if (bmp.width !== item.sw || bmp.height !== item.sh) {
+        bmp.close();
+        throw new Error('Artwork dimensions mismatch');
+      }
+      decoded.push({
+        id: decoded.length + 1, name: item.name, bmp, sw: item.sw, sh: item.sh,
+        s: item.s, rot: item.rot, x: item.x, y: item.y, sheet: item.sheet,
+        sourceName: item.source?.name ?? item.name, sourceData: item.source?.data ?? null,
+      });
     }
-    // Commit only after every image and setting has passed validation.
+    // No partial replacements. Either the lot opens or nothing changes.
     const previous = stickers;
     stickers = decoded;
     selected = null;
     nextId = decoded.length + 1;
-    settings.marginMm = c.marginMm;
-    settings.knifePressure = c.knifePressure;
-    settings.cutHoles = c.cutHoles;
-    $('margin').value = $('marginRange').value = c.marginMm;
-    $('kp').value = c.knifePressure;
-    $('holes').checked = c.cutHoles;
-    for (const old of previous) if (!decoded.some(k => k.bmp === old.bmp)) old.bmp?.close?.();
+    settings.marginMm = doc.cut.marginMm;
+    settings.knifePressure = doc.cut.knifePressure;
+    settings.cutHoles = doc.cut.cutHoles;
+    $('margin').value = $('marginRange').value = settings.marginMm;
+    $('kp').value = settings.knifePressure;
+    $('holes').checked = settings.cutHoles;
+    store.set('marginMm', settings.marginMm);
+    store.set('kp', settings.knifePressure);
+    store.set('cutHoles', settings.cutHoles);
+    for (const old of previous) old.bmp?.close?.();
     changed();
     log('Project opened (' + decoded.length + ' artwork items). Printing remains manual on open.');
   } catch (e) {
     for (const k of decoded) k.bmp?.close?.();
     log('Project rejected; current sheet unchanged: ' + e.message);
-  }
+  } finally { projectBusy = false; }
 }
 $('saveProjectBtn').onclick = saveProject;
 $('openProjectBtn').onclick = () => $('projectFile').click();
