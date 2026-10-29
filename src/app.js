@@ -439,6 +439,7 @@ view.addEventListener('pointermove', (e) => {
   }
   clampInto(k);
   cutStale = true;
+  updateButtons();
   render();
 });
 const endDrag = () => { if (drag) { drag = null; changed(); } };
@@ -523,8 +524,18 @@ function download(bytes, name, type) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
-$('jpgBtn').onclick = async () => { try { download(await buildJpeg(), `brencut-${stamp()}.jpg`, 'image/jpeg'); } catch (e) { log(e.message); } };
-$('pltBtn').onclick = () => download(pltBytes(), `brencut-${stamp()}.plt`, 'text/plain');
+function exportReady() {
+  if (cutStale) runTrace();
+  return sheetPreflight();
+}
+$('jpgBtn').onclick = async () => {
+  if (!exportReady()) return;
+  try { download(await buildJpeg(), `brencut-${stamp()}.jpg`, 'image/jpeg'); }
+  catch (e) { log(e.message); }
+};
+$('pltBtn').onclick = () => {
+  if (exportReady()) download(pltBytes(), `brencut-${stamp()}.plt`, 'text/plain');
+};
 
 /* Projects keep the working pixels and, where available, the original upload. */
 function blobToDataUrl(blob) {

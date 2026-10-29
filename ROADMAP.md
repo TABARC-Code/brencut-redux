@@ -1,7 +1,7 @@
 # BrenCut Redux — development notes
 
 Maintainer: TABARC-Code  
-Working baseline: 1.5.8
+Working baseline: 1.6.2
 
 Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and three appearance options stable unless tests or hardware evidence justify a change. Make each release buildable before moving on. The machine gets the final say.
 
@@ -64,7 +64,7 @@ Acceptance: undo/redo round-trips geometry; no shared-state leaks between sheets
 - Full-sheet import needs a deliberate default, not another silent heuristic.
 - Future ideas are useful; quietly breaking print output to add them isn't.
 
-## Current verification ledger (v1.5.8)
+## Current verification ledger (v1.6.2)
 
 - Implemented: working-bitmap project save/open, original uploaded artwork in v2 projects, strict transactional validation, manual/automatic print selection, shared cut preflight with overlap, border-gap and path bounds checks, explicit import selection.
 - Not yet verified: browser JPEG byte fidelity after project reopen, physical PixCut S1 operation and full browser workflow. PNG/PLT and padded-raster fixture equivalence now have a regression check.

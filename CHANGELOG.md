@@ -1,5 +1,12 @@
 # Changes
 
+## 1.6.2 — check exports against the current sheet
+
+- Recheck the cutting preflight when exporting JPEG or PLT; don't export a stale path while artwork is moving.
+- Disable output buttons as soon as a drag makes the current trace out of date.
+- Add an integration check using the actual cut tracer and square-sheet fixture, rather than relying solely on stub contours.
+- Real PixCut S1 cutting and browser-encoded JPEG equivalence remain unverified.
+
 ## 1.5.8 — project round-trip and busy-state safeguards
 
 - Cap total decoded project artwork to 32 million pixels before allocating bitmaps, preventing excessive memory use from highly compressed files.

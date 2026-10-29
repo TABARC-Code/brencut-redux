@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { inspectSheet } from '../src/preflight.js';
+import { readFileSync } from 'node:fs';
+import { decodePng } from '../vendor/pixcut-trace/png.ts';
+import { traceSheet } from '../src/cut.js';
+import { SHEET } from '../src/protocol.js';
 
 const sheet = { w: 1200, h: 2100 };
 const settings = { marginMm: 1.5, knifePressure: 42, cutHoles: false };
@@ -34,4 +38,13 @@ test('a cut outside the sheet blocks; near-edge cuts warn', () => {
   const r = check([item('A', 80, 80)], near);
   assert.equal(r.ok, true);
   assert.ok(r.warnings.some(w => w.code === 'edge'));
+});
+
+test('real tracer output from the square fixture passes preflight', () => {
+  const raster = decodePng(readFileSync(new URL('./fixtures/square-4x7.png', import.meta.url)));
+  const traced = traceSheet(raster);
+  const report = inspectSheet([{
+    name: 'fixture', sw: SHEET.w, sh: SHEET.h, s: 1, rot: 0, x: 0, y: 0, sheet: true,
+  }], traced, settings, SHEET);
+  assert.equal(report.ok, true, JSON.stringify(report.errors));
 });
