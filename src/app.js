@@ -47,6 +47,7 @@ const settings = {
   cutHoles: store.get('cutHoles', CUT_DEFAULTS.cutHoles),
   showCut: store.get('showCut', true),
   printMode: store.get('printMode', 'manual') === 'auto' ? 'auto' : 'manual',
+  importMode: store.get('importMode', 'stickers') === 'sheet' ? 'sheet' : 'stickers',
 };
 // Cosmetic appearance is deliberately independent of persisted cutting settings.
 installAppearanceControls({ store, onChange: () => { updateCanvasPalette(); render(); } });
@@ -163,7 +164,8 @@ async function addFiles(files) {
       }
       const aspect = src.width / src.height;
       const land = Math.abs(aspect - 7 / 4) < 0.01;
-      if ((land || Math.abs(aspect - 4 / 7) < 0.01) && Math.max(src.width, src.height) >= 700) {
+      if (settings.importMode === 'sheet') {
+        if (!(land || Math.abs(aspect - 4 / 7) < 0.01)) throw new Error('Full-sheet import requires a 4:7 or 7:4 aspect ratio');
         const k = { id: nextId++, name, bmp: src, sw: src.width, sh: src.height, s: SHEET.h / Math.max(src.width, src.height), rot: land ? 1 : 0, x: 0, y: 0, sheet: true };
         const t = await trimmed(src);
         if (!t) { log(`${f.name}: fully transparent, skipped`); continue; }
@@ -452,6 +454,10 @@ document.addEventListener('paste', (e) => {
 for (const input of document.querySelectorAll('input[name="printMode"]')) {
   input.checked = input.value === settings.printMode;
   input.onchange = () => { if (input.checked) { settings.printMode = input.value; store.set('printMode', input.value); } };
+}
+for (const input of document.querySelectorAll('input[name="importMode"]')) {
+  input.checked = input.value === settings.importMode;
+  input.onchange = () => { if (input.checked) { settings.importMode = input.value; store.set('importMode', input.value); } };
 }
 $('arrangeBtn').onclick = arrange;
 $('clearBtn').onclick = () => { if (stickers.length && confirm('Remove all stickers from the sheet?')) { stickers = []; selected = null; changed(); } };
