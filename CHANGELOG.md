@@ -1,5 +1,12 @@
 # Changes
 
+## 1.4.1 — explicit import mode
+
+- Default to importing individual stickers; matching a 4:7 ratio no longer silently turns an image into a full sheet.
+- Add a persistent Full 4 × 7 sheet option for deliberately prepared sheets, with aspect-ratio validation.
+- Portable project files and print mode from earlier releases remain available.
+- Browser and physical-device regression tests remain outstanding.
+
 ## 1.3.7 — portable projects
 
 - Add Save project / Open project controls and versioned .brencut documents with embedded working PNG images.
