@@ -1,5 +1,12 @@
 # Changes
 
+## 1.3.7 — portable projects
+
+- Add Save project / Open project controls and versioned .brencut documents with embedded working PNG images.
+- Restore artwork order, geometry, rotation and cut settings after validating the complete document.
+- Reject oversized or malformed files without replacing the current sheet; opening never triggers automatic printing.
+- Original uncropped uploads are not retained. Hardware and browser regression checks remain outstanding.
+
 ## 1.3.2 — import printing and preflight
 
 - Add persisted Manual / Automatic print selector; Manual remains the default.
