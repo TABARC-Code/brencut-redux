@@ -46,6 +46,7 @@ const settings = {
   knifePressure: store.get('kp', CUT_DEFAULTS.knifePressure), // key renamed when the default moved 1 -> 42
   cutHoles: store.get('cutHoles', CUT_DEFAULTS.cutHoles),
   showCut: store.get('showCut', true),
+  printMode: store.get('printMode', 'manual') === 'auto' ? 'auto' : 'manual',
 };
 // Cosmetic appearance is deliberately independent of persisted cutting settings.
 installAppearanceControls({ store, onChange: () => { updateCanvasPalette(); render(); } });
@@ -148,6 +149,8 @@ async function trimmed(bmp) {
 }
 
 async function addFiles(files) {
+  if (printing) { log('Wait for printing to finish before importing'); return; }
+  const before = stickers.length;
   for (const f of files) {
     if (!f.type.startsWith('image/')) continue;
     try {
@@ -187,6 +190,14 @@ async function addFiles(files) {
     }
   }
   changed();
+  if (stickers.length > before && settings.printMode === 'auto') {
+    if (!printerReady()) log('auto-print skipped: printer not ready');
+    else {
+      if (cutStale) runTrace();
+      if (!hasPrintableCut(cut) || !sheetPreflight()) log('auto-print skipped: invalid cut or layout');
+      else $('printBtn').click();
+    }
+  }
 }
 
 /* ═══ drawing ═══ */
@@ -438,6 +449,10 @@ document.addEventListener('paste', (e) => {
   const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
   if (files.length) { e.preventDefault(); addFiles(files); }
 });
+for (const input of document.querySelectorAll('input[name="printMode"]')) {
+  input.checked = input.value === settings.printMode;
+  input.onchange = () => { if (input.checked) { settings.printMode = input.value; store.set('printMode', input.value); } };
+}
 $('arrangeBtn').onclick = arrange;
 $('clearBtn').onclick = () => { if (stickers.length && confirm('Remove all stickers from the sheet?')) { stickers = []; selected = null; changed(); } };
 
@@ -549,11 +564,31 @@ $('connectBtn').onclick = async () => {
   try { await connect(await usb.requestPrinter()); } catch (e) { if (e.name !== 'NotFoundError') log(e.message); }
 };
 
+function printerReady() {
+  return !!conn && !printing && !conn.px?.needsReconnect && conn.status?.state === 20 && !conn.status?.alerts?.length;
+}
+function sheetPreflight() {
+  if (!stickers.length) return false;
+  for (const k of stickers) {
+    const b = bbox(k);
+    if (![k.x, k.y, b.w, b.h].every(Number.isFinite) || b.w <= 0 || b.h <= 0 ||
+        k.x < 0 || k.y < 0 || k.x + b.w > SHEET.w + .01 || k.y + b.h > SHEET.h + .01) {
+      log(`preflight: ${k.name} extends beyond the sheet`); return false;
+    }
+  }
+  for (let i = 0; i < stickers.length; i++) for (let j = i + 1; j < stickers.length; j++) {
+    const x = stickers[i], y = stickers[j], xb = bbox(x), yb = bbox(y);
+    if (x.x < y.x + yb.w && y.x < x.x + xb.w && x.y < y.y + yb.h && y.y < x.y + xb.h) {
+      log(`preflight: ${x.name} overlaps ${y.name}`); return false;
+    }
+  }
+  return true;
+}
 $('printBtn').onclick = async () => {
   if (!conn || printing) return;
   // A button click can race a debounced trace; never upload an old or empty path.
   if (cutStale) runTrace();
-  if (!hasPrintableCut(cut)) { log('no valid cut paths; print cancelled'); return; }
+  if (!hasPrintableCut(cut) || !sheetPreflight() || !printerReady()) { log('print cancelled: cut, layout or printer preflight failed'); return; }
   const abort = new AbortController();
   printing = { abort, jobId: null };
   updateButtons();
