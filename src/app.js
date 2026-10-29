@@ -3,6 +3,7 @@ import { traceSheet, padToRaster, CUT_DEFAULTS, hasPrintableCut } from './cut.js
 import * as usb from './webusb.js';
 import { installAppearanceControls } from './appearance.js';
 import { PROJECT_LIMIT, SOURCE_MIMES, makeProjectDocument, validateProjectDocument } from './project.js';
+import { inspectSheet } from './preflight.js';
 
 const $ = (id) => document.getElementById(id);
 const PX_PER_MM = 300 / 25.4;
@@ -303,6 +304,11 @@ function runTrace() {
   } catch (e) {
     cut = null;
     $('cutStats').textContent = `trace failed: ${e.message}`;
+  }
+  if (stickers.length) {
+    const review = inspectSheet(stickers, cut, settings, SHEET, cutStale);
+    if (review.errors.length) $('cutStats').textContent += ' · preflight: ' + review.errors[0].message;
+    else if (review.warnings.length) $('cutStats').textContent += ' · ' + review.warnings[0].message;
   }
   render();
   updateButtons();
@@ -670,21 +676,10 @@ function printerReady() {
   return !!conn && !printing && !conn.px?.needsReconnect && conn.status?.state === 20 && !conn.status?.alerts?.length;
 }
 function sheetPreflight() {
-  if (!stickers.length) return false;
-  for (const k of stickers) {
-    const b = bbox(k);
-    if (![k.x, k.y, b.w, b.h].every(Number.isFinite) || b.w <= 0 || b.h <= 0 ||
-        k.x < 0 || k.y < 0 || k.x + b.w > SHEET.w + .01 || k.y + b.h > SHEET.h + .01) {
-      log(`preflight: ${k.name} extends beyond the sheet`); return false;
-    }
-  }
-  for (let i = 0; i < stickers.length; i++) for (let j = i + 1; j < stickers.length; j++) {
-    const x = stickers[i], y = stickers[j], xb = bbox(x), yb = bbox(y);
-    if (x.x < y.x + yb.w && y.x < x.x + xb.w && x.y < y.y + yb.h && y.y < x.y + xb.h) {
-      log(`preflight: ${x.name} overlaps ${y.name}`); return false;
-    }
-  }
-  return true;
+  const review = inspectSheet(stickers, cut, settings, SHEET, cutStale);
+  for (const issue of review.errors) log('preflight: ' + issue.message);
+  for (const issue of review.warnings) log('preflight warning: ' + issue.message);
+  return review.ok;
 }
 $('printBtn').onclick = async () => {
   if (!conn || printing) return;
@@ -732,7 +727,8 @@ $('cancelBtn').onclick = () => {
 };
 
 function updateButtons() {
-  const hasCut = !cutStale && hasPrintableCut(cut) && stickers.length > 0;
+  const review = !cutStale ? inspectSheet(stickers, cut, settings, SHEET) : null;
+  const hasCut = !!review?.ok;
   const reconnectNeeded = !!conn?.px?.needsReconnect;
   $('printBtn').disabled = !conn || !hasCut || !!printing || reconnectNeeded;
   let reason;
@@ -740,7 +736,7 @@ function updateButtons() {
   else if (reconnectNeeded) reason = 'The last transfer was interrupted. Disconnect and reconnect the printer before another job.';
   else if (!stickers.length) reason = 'Add transparent artwork to create a cut path.';
   else if (cutStale) reason = 'Updating the cut preview…';
-  else if (!hasCut) reason = 'No usable cut paths yet. Check your artwork and cut preview.';
+  else if (!hasCut) reason = review?.errors[0]?.message ?? 'No usable cut paths yet. Check your artwork and cut preview.';
   else if (!usb.supported()) reason = 'Use Chrome or Edge over HTTPS or localhost for printer access. Exports remain available.';
   else if (!conn) reason = 'Cut path ready. Connect your PixCut S1, or export the files below.';
   else reason = 'Ready to print and cut. Check the preview before starting.';

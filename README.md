@@ -4,7 +4,7 @@ A small browser-based workspace for preparing sticker sheets and cutting them on
 
 This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-**Version:** 1.4.6  
+**Version:** 1.5.3  
 **Status:** Development release. Software checks pass; cancellation and bounded transfer recovery have simulated transport tests; physical PixCut S1 confirmation remains outstanding.
 
 Manual printing remains the default. The print panel also offers automatic printing after an artwork import batch. This requires an idle, alert-free connected printer, valid cut paths and non-overlapping, in-bounds artwork. Hardware validation is still outstanding.
@@ -65,6 +65,7 @@ The current automated checks cover only simulated code paths. They do not replac
 - Cut tracing has a **100-contour limit**. If there are too many separate shapes the job is refused rather than silently dropping cuts.
 - Very small artwork can disappear during tracing. Increase its size or adjust the border, then check the preview.
 - Arrange uses a basic row layout. If it can't fit the artwork, it leaves the previous arrangement alone. Better packing is in the plan.
+- Cutting preflight blocks overlapping stickers, unsafe gaps between cut borders, malformed or out-of-sheet paths and invalid cutting settings. A path within 3 mm of an edge produces a warning. Print and export controls stay disabled until blocking errors are fixed.
 - Cancel stops scheduling further upload chunks and sends a single cancel command once the printer has assigned a job number. Already-started USB transfers cannot be recalled, and the printer may continue moving. Confirm it has stopped before handling the sheet. A failed or interrupted transfer requires disconnecting and reconnecting before sending another job.
 
 USB writes, acknowledgements and printer status requests now have finite timeouts. Lost status replies are retried without resending image or cut-path chunks; after repeated failures, BrenCut requests cancellation and asks for a fresh connection. The printer's actual state remains uncertain after a disconnection, or if job declaration times out before the printer returns its job number. Cancellation error replies are also reported rather than treated as success.

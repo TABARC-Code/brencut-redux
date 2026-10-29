@@ -1,5 +1,12 @@
 # Changes
 
+## 1.5.3 — cutting preflight
+
+- Add one shared preflight check for print and export readiness, with explicit blocking errors and near-edge warnings.
+- Reject overlapping artwork, insufficient clearance for cut borders, invalid geometry or settings, missing contours and paths outside the sheet.
+- Show the first issue alongside the cut preview and prevent invalid output being sent or exported.
+- Add regression tests for valid sheets, overlap, border clearance, invalid paths and stale traces. Actual printer alignment still needs testing.
+
 ## 1.4.6 — preserve original artwork in project files
 
 - Save version 2 project documents with the imported original image alongside the cropped working bitmap, geometry and cutting settings.
