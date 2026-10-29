@@ -47,3 +47,8 @@ test('v2 accepts missing originals for imported legacy projects', () => {
   const saved = doc(); saved.stickers[0].source = null;
   assert.equal(validateProjectDocument(saved, sheet).version, 2);
 });
+
+test('total decoded artwork budget blocks compressed image bombs', () => {
+  const large = { ...item(), sw: 4000, sh: 3000, s: 0.1, rot: 0, x: 0, y: 0 };
+  assert.throws(() => makeProjectDocument([large, large, large], { ...cut }, sheet), /memory limit/);
+});

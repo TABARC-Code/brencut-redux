@@ -3,6 +3,7 @@ export const PROJECT_LIMIT = 40 * 1024 * 1024;
 export const PROJECT_ITEMS_LIMIT = 100;
 export const SOURCE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const IMAGE_PIXELS_LIMIT = 12_000_000;
+const TOTAL_PROJECT_PIXELS_LIMIT = 32_000_000;
 const dataUrlPattern = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/;
 
 function checkDataUrl(value, working = false) {
@@ -25,6 +26,7 @@ export function validateProjectDocument(doc, sheet) {
       !Number.isInteger(cut.knifePressure) || cut.knifePressure < 1 || cut.knifePressure > 100 ||
       typeof cut.cutHoles !== 'boolean') throw new Error('Invalid cutting settings');
 
+  let totalPixels = 0;
   for (const item of doc.stickers) {
     if (!item || typeof item.name !== 'string' || item.name.length > 240 ||
         !Number.isInteger(item.sw) || !Number.isInteger(item.sh) ||
@@ -33,6 +35,8 @@ export function validateProjectDocument(doc, sheet) {
         !Number.isInteger(item.rot) || item.rot < 0 || item.rot > 3 ||
         !Number.isFinite(item.x) || !Number.isFinite(item.y) ||
         typeof item.sheet !== 'boolean') throw new Error('Invalid artwork record');
+    totalPixels += item.sw * item.sh;
+    if (totalPixels > TOTAL_PROJECT_PIXELS_LIMIT) throw new Error('Project artwork exceeds the memory limit');
     checkDataUrl(item.png, true);
     if (doc.version === 2) {
       if (item.source !== null && item.source !== undefined) {

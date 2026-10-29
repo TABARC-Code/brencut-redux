@@ -4,12 +4,12 @@ A small browser-based workspace for preparing sticker sheets and cutting them on
 
 This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-**Version:** 1.5.3  
+**Version:** 1.5.8  
 **Status:** Development release. Software checks pass; cancellation and bounded transfer recovery have simulated transport tests; physical PixCut S1 confirmation remains outstanding.
 
 Manual printing remains the default. The print panel also offers automatic printing after an artwork import batch. This requires an idle, alert-free connected printer, valid cut paths and non-overlapping, in-bounds artwork. Hardware validation is still outstanding.
 
-**Portable projects:** Save project exports a versioned .brencut JSON document with the working PNG bitmaps, original uploaded artwork (when available), geometry and cutting settings. Open project checks the entire document before replacing the current sheet. Version 1 projects still open, though they cannot recover originals that were never saved. Opening does not start printing. Maximum project size: 40 MiB; individual original images are limited to 12 MiB.
+**Portable projects:** Save project exports a versioned .brencut JSON document with the working PNG bitmaps, original uploaded artwork (when available), geometry and cutting settings. Open project checks the entire document before replacing the current sheet. Version 1 projects still open, though they cannot recover originals that were never saved. Opening does not start printing. Maximum project size: 40 MiB; individual original images are limited to 12 MiB, with a 32-million-pixel total working-artwork budget on load. Saving snapshots the current geometry before encoding images; importing or opening a project cannot race the start of a print job.
 
 **Explicit import mode:** Artwork is imported as individual stickers by default, even if its dimensions happen to match a full sheet. Select Full 4 × 7 sheet when importing a prepared page. This preference is stored locally.
 

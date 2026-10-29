@@ -1,5 +1,12 @@
 # Changes
 
+## 1.5.8 — project round-trip and busy-state safeguards
+
+- Cap total decoded project artwork to 32 million pixels before allocating bitmaps, preventing excessive memory use from highly compressed files.
+- Snapshot project geometry and cutting settings at save time; block printing while importing or opening/saving a project.
+- Keep automatic printing available after a completed import batch rather than during the import itself.
+- Add a PNG fixture round-trip check comparing PLT instructions and padded raster bytes. Browser JPEG encoding and physical printing still require verification.
+
 ## 1.5.3 — cutting preflight
 
 - Add one shared preflight check for print and export readiness, with explicit blocking errors and near-edge warnings.

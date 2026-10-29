@@ -156,6 +156,7 @@ async function trimmed(bmp) {
 async function addFiles(files) {
   if (printing || projectBusy || importing) { log('Finish the current operation before importing'); return; }
   importing = true;
+  updateButtons();
   try {
   const before = stickers.length;
   for (const f of files) {
@@ -201,6 +202,8 @@ async function addFiles(files) {
     }
   }
   changed();
+  importing = false;
+  updateButtons();
   if (stickers.length > before && settings.printMode === 'auto') {
     if (!printerReady()) log('auto-print skipped: printer not ready');
     else {
@@ -209,7 +212,7 @@ async function addFiles(files) {
       else $('printBtn').click();
     }
   }
-  } finally { importing = false; }
+  } finally { importing = false; updateButtons(); }
 }
 
 /* ═══ drawing ═══ */
@@ -542,27 +545,28 @@ async function bitmapPng(k) {
 async function saveProject() {
   if (printing || importing || projectBusy) { log('Finish the current operation before saving'); return; }
   projectBusy = true;
+  updateButtons();
   try {
+    const snapshot = stickers.map(k => ({ ...k }));
+    const savedCut = { marginMm: settings.marginMm, knifePressure: settings.knifePressure, cutHoles: settings.cutHoles };
     const items = [];
-    for (const k of stickers) items.push({
+    for (const k of snapshot) items.push({
       name: k.name, sw: k.sw, sh: k.sh, s: k.s, rot: k.rot, x: k.x, y: k.y,
       sheet: !!k.sheet, png: await bitmapPng(k),
       source: k.sourceData ? { name: k.sourceName ?? k.name, data: k.sourceData } : null,
     });
-    const doc = makeProjectDocument(items, {
-      marginMm: settings.marginMm, knifePressure: settings.knifePressure,
-      cutHoles: settings.cutHoles,
-    }, SHEET);
+    const doc = makeProjectDocument(items, savedCut, SHEET);
     const payload = JSON.stringify(doc);
     download(new TextEncoder().encode(payload), 'brencut-' + stamp() + '.brencut', 'application/json');
     log('Project saved (' + items.length + ' artwork items)');
   } catch (e) { log('Project save failed: ' + e.message); }
-  finally { projectBusy = false; }
+  finally { projectBusy = false; updateButtons(); }
 }
 async function openProject(file) {
   if (printing || importing || projectBusy) { log('Finish the current operation before opening a project'); return; }
   if (!file || file.size > PROJECT_LIMIT) { log('Project rejected: file exceeds 40 MiB'); return; }
   projectBusy = true;
+  updateButtons();
   const decoded = [];
   try {
     // Check the whole document before allocating any image bitmaps.
@@ -600,7 +604,7 @@ async function openProject(file) {
   } catch (e) {
     for (const k of decoded) k.bmp?.close?.();
     log('Project rejected; current sheet unchanged: ' + e.message);
-  } finally { projectBusy = false; }
+  } finally { projectBusy = false; updateButtons(); }
 }
 $('saveProjectBtn').onclick = saveProject;
 $('openProjectBtn').onclick = () => $('projectFile').click();
@@ -682,7 +686,7 @@ function sheetPreflight() {
   return review.ok;
 }
 $('printBtn').onclick = async () => {
-  if (!conn || printing) return;
+  if (!conn || printing || projectBusy || importing) return;
   // A button click can race a debounced trace; never upload an old or empty path.
   if (cutStale) runTrace();
   if (!hasPrintableCut(cut) || !sheetPreflight() || !printerReady()) { log('print cancelled: cut, layout or printer preflight failed'); return; }
@@ -730,9 +734,10 @@ function updateButtons() {
   const review = !cutStale ? inspectSheet(stickers, cut, settings, SHEET) : null;
   const hasCut = !!review?.ok;
   const reconnectNeeded = !!conn?.px?.needsReconnect;
-  $('printBtn').disabled = !conn || !hasCut || !!printing || reconnectNeeded;
+  $('printBtn').disabled = !conn || !hasCut || !!printing || reconnectNeeded || projectBusy || importing;
   let reason;
   if (printing) reason = 'Job running. You can cancel it below.';
+  else if (projectBusy || importing) reason = 'Finish loading or saving artwork before printing.';
   else if (reconnectNeeded) reason = 'The last transfer was interrupted. Disconnect and reconnect the printer before another job.';
   else if (!stickers.length) reason = 'Add transparent artwork to create a cut path.';
   else if (cutStale) reason = 'Updating the cut preview…';
