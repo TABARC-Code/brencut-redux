@@ -1,7 +1,7 @@
 # BrenCut Redux — development notes
 
 Maintainer: TABARC-Code  
-Working baseline: 1.2.8
+Working baseline: 1.4.1
 
 Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and three appearance options stable unless tests or hardware evidence justify a change. Make each release buildable before moving on. The machine gets the final say.
 
@@ -29,7 +29,7 @@ Follow-up v1.2.8 [DONE]: declaration timeout now leaves the connection marked un
 
 Acceptance: the application stops *sending* additional chunks after cancel; the printer receives a cancel request when a job ID exists; no stalled operation leaves the interface permanently busy; mocked transport tests pass.
 
-## v1.3.0 — Project files and cutting preflight [PLANNED]
+## v1.3.x — Project files and cutting preflight [PARTIAL]
 
 - Save source artwork with position, rotation, scale and cutting settings in a portable project file.
 - Reopen without depending on browser storage; validate file version and corrupted inputs.
@@ -39,7 +39,7 @@ Acceptance: the application stops *sending* additional chunks after cancel; the 
 
 Acceptance: reopen a project with the same sheet geometry and settings; tests for invalid or incomplete files; preflight blocks known unsafe output.
 
-## v1.4.0 — Layout and explicit import [PLANNED]
+## v1.4.x — Layout and explicit import [PARTIAL]
 
 - Offer **individual sticker** and **full sheet** during import instead of guessing solely from dimensions.
 - Improve packing with optional 90-degree rotation and real cut margins.
@@ -63,3 +63,10 @@ Acceptance: undo/redo round-trips geometry; no shared-state leaks between sheets
 - Project-file format must be versioned without making the archive fragile.
 - Full-sheet import needs a deliberate default, not another silent heuristic.
 - Future ideas are useful; quietly breaking print output to add them isn't.
+
+## Current verification ledger (v1.4.1)
+
+- Implemented: working-bitmap project save/open, initial transactional validation, manual/automatic print selection, initial overlap and bounds blocking, explicit import selection.
+- Not yet verified: browser round-trip output fidelity, full automated regression suite after v1.2.8, physical PixCut S1 operation, source-original preservation.
+- Not complete: structured warning versus error preflight, reliable no-overlap packing, undo/redo, multiple sheets and independent page print ordering.
+- Do not mark these complete based on source inspection alone.
