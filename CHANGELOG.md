@@ -1,5 +1,12 @@
 # Changes
 
+## 1.3.2 — import printing and preflight
+
+- Add persisted Manual / Automatic print selector; Manual remains the default.
+- Print at most once per completed artwork import batch when printer and cut are ready.
+- Reject overlapping or out-of-bounds artwork, invalid cut paths and printer readiness failures.
+- Refuse new artwork imports while printing. Physical printer verification is outstanding.
+
 ## 1.2.8 — uncertain job declaration
 
 - Distinguish an early cancellation from a cancellation requested while the printer may already have created a job.
