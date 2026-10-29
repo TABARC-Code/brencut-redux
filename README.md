@@ -4,12 +4,14 @@ A small browser-based workspace for preparing sticker sheets and cutting them on
 
 This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-**Version:** 1.3.7  
+**Version:** 1.4.1  
 **Status:** Development release. Software checks pass; cancellation and bounded transfer recovery have simulated transport tests; physical PixCut S1 confirmation remains outstanding.
 
 Manual printing remains the default. The print panel also offers automatic printing after an artwork import batch. This requires an idle, alert-free connected printer, valid cut paths and non-overlapping, in-bounds artwork. Hardware validation is still outstanding.
 
 **Portable projects:** Save project exports a versioned .brencut JSON document with embedded PNG copies of working artwork, geometry and cut settings. Open project validates every item before replacing the current sheet. Opening never triggers automatic printing. The project stores cropped working images, not the original uncropped uploads. Maximum project size: 40 MiB.
+
+**Explicit import mode:** Artwork is imported as individual stickers by default, even if its dimensions happen to match a full sheet. Select Full 4 × 7 sheet when importing a prepared page. This preference is stored locally.
 
 ## Getting started
 
