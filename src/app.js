@@ -502,6 +502,98 @@ const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
 $('jpgBtn').onclick = async () => { try { download(await buildJpeg(), `brencut-${stamp()}.jpg`, 'image/jpeg'); } catch (e) { log(e.message); } };
 $('pltBtn').onclick = () => download(pltBytes(), `brencut-${stamp()}.plt`, 'text/plain');
 
+/* Portable projects store the exact working bitmaps. The original uncropped uploads are not available. */
+const PROJECT_LIMIT = 40 * 1024 * 1024;
+async function bitmapPng(k) {
+  const c = new OffscreenCanvas(k.sw, k.sh);
+  c.getContext('2d').drawImage(k.bmp, 0, 0);
+  const blob = await c.convertToBlob({ type: 'image/png' });
+  if (blob.size > PROJECT_LIMIT) throw new Error('Artwork is too large for a project');
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not encode artwork'));
+    reader.readAsDataURL(blob);
+  });
+}
+async function saveProject() {
+  if (printing) { log('Finish printing before saving'); return; }
+  try {
+    const items = [];
+    for (const k of stickers) items.push({
+      name: k.name, sw: k.sw, sh: k.sh, s: k.s, rot: k.rot, x: k.x, y: k.y,
+      sheet: !!k.sheet, png: await bitmapPng(k),
+    });
+    const doc = { format: 'brencut-project', version: 1, sheet: [SHEET.w, SHEET.h],
+      cut: { marginMm: settings.marginMm, knifePressure: settings.knifePressure,
+        cutHoles: settings.cutHoles }, stickers: items };
+    const payload = JSON.stringify(doc);
+    if (payload.length > PROJECT_LIMIT) throw new Error('Project exceeds 40 MiB');
+    download(new TextEncoder().encode(payload), 'brencut-' + stamp() + '.brencut', 'application/json');
+    log('Project saved (' + items.length + ' artwork items)');
+  } catch (e) { log('Project save failed: ' + e.message); }
+}
+async function openProject(file) {
+  if (printing) { log('Finish printing before opening a project'); return; }
+  if (!file || file.size > PROJECT_LIMIT) { log('Project rejected: file exceeds 40 MiB'); return; }
+  const decoded = [];
+  try {
+    const doc = JSON.parse(await file.text());
+    if (doc?.format !== 'brencut-project' || doc.version !== 1 ||
+        !Array.isArray(doc.sheet) || doc.sheet[0] !== SHEET.w || doc.sheet[1] !== SHEET.h ||
+        !Array.isArray(doc.stickers) || doc.stickers.length > 100 ||
+        !doc.cut || typeof doc.cut !== 'object') throw new Error('Unsupported or malformed project');
+    const c = doc.cut;
+    if (!Number.isFinite(c.marginMm) || c.marginMm < 0 || c.marginMm > 10 ||
+        !Number.isInteger(c.knifePressure) || c.knifePressure < 1 || c.knifePressure > 100 ||
+        typeof c.cutHoles !== 'boolean') throw new Error('Invalid cutting settings');
+    for (const item of doc.stickers) {
+      if (typeof item.name !== 'string' || item.name.length > 240 ||
+          !Number.isInteger(item.sw) || !Number.isInteger(item.sh) ||
+          item.sw < 1 || item.sh < 1 || item.sw * item.sh > 12000000 ||
+          !Number.isFinite(item.s) || item.s <= 0 ||
+          !Number.isInteger(item.rot) || item.rot < 0 || item.rot > 3 ||
+          !Number.isFinite(item.x) || !Number.isFinite(item.y) ||
+          typeof item.sheet !== 'boolean' ||
+          typeof item.png !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(item.png) ||
+          item.png.length > PROJECT_LIMIT) throw new Error('Invalid artwork record');
+      const response = await fetch(item.png);
+      const bmp = await createImageBitmap(await response.blob());
+      if (bmp.width !== item.sw || bmp.height !== item.sh) { bmp.close(); throw new Error('Artwork dimensions mismatch'); }
+      const k = { id: decoded.length + 1, name: item.name, bmp, sw: item.sw, sh: item.sh,
+        s: item.s, rot: item.rot, x: item.x, y: item.y, sheet: item.sheet };
+      const b = bbox(k);
+      if (k.x < 0 || k.y < 0 || k.x + b.w > SHEET.w + .01 || k.y + b.h > SHEET.h + .01)
+        throw new Error('Artwork extends beyond the sheet');
+      decoded.push(k);
+    }
+    // Commit only after every image and setting has passed validation.
+    const previous = stickers;
+    stickers = decoded;
+    selected = null;
+    nextId = decoded.length + 1;
+    settings.marginMm = c.marginMm;
+    settings.knifePressure = c.knifePressure;
+    settings.cutHoles = c.cutHoles;
+    $('margin').value = $('marginRange').value = c.marginMm;
+    $('kp').value = c.knifePressure;
+    $('holes').checked = c.cutHoles;
+    for (const old of previous) if (!decoded.some(k => k.bmp === old.bmp)) old.bmp?.close?.();
+    changed();
+    log('Project opened (' + decoded.length + ' artwork items). Printing remains manual on open.');
+  } catch (e) {
+    for (const k of decoded) k.bmp?.close?.();
+    log('Project rejected; current sheet unchanged: ' + e.message);
+  }
+}
+$('saveProjectBtn').onclick = saveProject;
+$('openProjectBtn').onclick = () => $('projectFile').click();
+$('projectFile').onchange = async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (file && (!stickers.length || confirm('Replace the current sheet with this project?'))) await openProject(file);
+};
+
 /* ═══ printer ═══ */
 let conn = null; // {io, close, device, px: PixCut, info}
 let printing = null; // {abort: AbortController, jobId}
