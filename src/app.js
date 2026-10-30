@@ -4,6 +4,7 @@ import * as usb from './webusb.js';
 import { installAppearanceControls } from './appearance.js';
 import { PROJECT_LIMIT, SOURCE_MIMES, makeProjectDocument, validateProjectDocument } from './project.js';
 import { inspectSheet } from './preflight.js';
+import { planLayout } from './layout.js';
 
 const $ = (id) => document.getElementById(id);
 const PX_PER_MM = 300 / 25.4;
@@ -50,6 +51,7 @@ const settings = {
   showCut: store.get('showCut', true),
   printMode: store.get('printMode', 'manual') === 'auto' ? 'auto' : 'manual',
   importMode: store.get('importMode', 'stickers') === 'sheet' ? 'sheet' : 'stickers',
+  rotateArrange: store.get('rotateArrange', false) === true,
 };
 // Cosmetic appearance is deliberately independent of persisted cutting settings.
 installAppearanceControls({ store, onChange: () => { updateCanvasPalette(); render(); } });
@@ -95,22 +97,14 @@ function fitScale(k) {
 }
 
 function arrange() {
-  const gap = gapPx();
-  const order = stickers.filter((k) => !k.sheet).sort((a, b) => bbox(b).h - bbox(a).h);
-  let x = EDGE, y = EDGE, rowH = 0, overflow = 0;
-  const placements = [];
-  for (const k of order) {
-    const b = bbox(k);
-    if (x + b.w > SHEET.w - EDGE && x > EDGE) { x = EDGE; y += rowH + gap; rowH = 0; }
-    if (y + b.h > SHEET.h - EDGE) overflow++;
-    placements.push({ k, x, y });
-    x += b.w + gap; rowH = Math.max(rowH, b.h);
-  }
-  if (overflow) {
-    log(`${overflow} sticker(s) don't fit. The current layout has been kept; shrink something or remove one.`);
+  if (printing || projectBusy || importing) { log('Finish the current operation before arranging'); return; }
+  const result = planLayout(stickers, SHEET, { edge: EDGE, gap: gapPx(), rotate: settings.rotateArrange });
+  if (!result.ok) {
+    log('Arrange: ' + result.reason + '. The current layout has been kept.');
     return;
   }
-  for (const p of placements) { p.k.x = p.x; p.k.y = p.y; }
+  for (const p of result.placements) Object.assign(p.item, { x: p.x, y: p.y, rot: p.rot });
+  log('Arranged ' + result.placements.length + ' sticker(s)' + (result.rotated ? ', rotated ' + result.rotated : '') + '.');
   changed();
 }
 
@@ -478,6 +472,8 @@ for (const input of document.querySelectorAll('input[name="importMode"]')) {
   input.checked = input.value === settings.importMode;
   input.onchange = () => { if (input.checked) { settings.importMode = input.value; store.set('importMode', input.value); } };
 }
+$('rotateArrange').checked = settings.rotateArrange;
+$('rotateArrange').onchange = () => { settings.rotateArrange = $('rotateArrange').checked; store.set('rotateArrange', settings.rotateArrange); };
 $('arrangeBtn').onclick = arrange;
 $('clearBtn').onclick = () => { if (stickers.length && confirm('Remove all stickers from the sheet?')) { stickers = []; selected = null; changed(); } };
 

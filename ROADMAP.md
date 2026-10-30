@@ -1,7 +1,7 @@
 # BrenCut Redux — development notes
 
 Maintainer: TABARC-Code  
-Working baseline: 1.6.2
+Working baseline: 1.7.3
 
 Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and three appearance options stable unless tests or hardware evidence justify a change. Make each release buildable before moving on. The machine gets the final say.
 
@@ -39,7 +39,9 @@ Acceptance: the application stops *sending* additional chunks after cancel; the 
 
 Acceptance: reopen a project with the same sheet geometry and settings; tests for invalid or incomplete files; preflight blocks known unsafe output.
 
-## v1.4.x — Layout and explicit import [PARTIAL]
+## v1.4.x–v1.7.x — Layout and explicit import [PARTIAL]
+
+Follow-up v1.7.3 [DONE]: bounded packing, optional 90° rotation and all-or-nothing placement with dense fixture coverage.
 
 - Offer **individual sticker** and **full sheet** during import instead of guessing solely from dimensions.
 - Improve packing with optional 90-degree rotation and real cut margins.

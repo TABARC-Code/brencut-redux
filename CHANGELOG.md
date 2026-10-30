@@ -1,5 +1,13 @@
 # Changes
 
+## 1.7.3 — better automatic layout
+
+- Replace row packing with a bounded rectangle packer that tries several artwork orders and keeps the shortest successful sheet layout.
+- Allow optional 90° rotation. Sticker dimensions and scale stay as they were; no partial movement when the whole set cannot fit.
+- Check spacing against the existing cut-border clearance, and refuse to rearrange prepared full-sheet artwork.
+- Add dense and oversized fixtures, a hundred-item limit case and deterministic placement checks. Physical cutting alignment remains unverified.
+
+
 ## 1.6.2 — check exports against the current sheet
 
 - Recheck the cutting preflight when exporting JPEG or PLT; don't export a stale path while artwork is moving.

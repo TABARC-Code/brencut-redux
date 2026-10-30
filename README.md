@@ -4,7 +4,7 @@ A small browser-based workspace for preparing sticker sheets and cutting them on
 
 This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-**Version:** 1.6.2  
+**Version:** 1.7.3  
 **Status:** Development release. Software checks pass; cancellation and bounded transfer recovery have simulated transport tests; physical PixCut S1 confirmation remains outstanding.
 
 Manual printing remains the default. The print panel also offers automatic printing after an artwork import batch. This requires an idle, alert-free connected printer, valid cut paths and non-overlapping, in-bounds artwork. Hardware validation is still outstanding.
@@ -16,7 +16,7 @@ Manual printing remains the default. The print panel also offers automatic print
 ## Getting started
 
 1. Open the application in **Chrome or Edge** over HTTPS or localhost. Plug in the PixCut S1 and select **Connect**. Close the Liene application or any other tab using the printer first.
-2. Add transparent PNG artwork by file picker, drag-and-drop or paste. Drag to position it, pull the corner handle to resize, or use the artwork list for precise dimensions. **Arrange** lays out separate stickers automatically.
+2. Add transparent PNG artwork by file picker, drag-and-drop or paste. Drag to position it, pull the corner handle to resize, or use the artwork list for precise dimensions. **Arrange** packs separate stickers without changing their size. Tick **Allow 90° rotation** to try both orientations. If any item will not fit, the existing positions stay untouched.
 3. Set the white border and knife pressure, inspect the cut preview, then choose **Print & Cut**. You can export the JPEG and PLT files without a printer attached.
 
 The working sticker area is **4 × 7 inches**, at **300 DPI**. Full sheets are supported when imported at the expected aspect ratio. The import mode is explicit: individual stickers are the default; choose Full 4 × 7 sheet for prepared artwork.
@@ -64,7 +64,7 @@ The current automated checks cover only simulated code paths. They do not replac
 - Default knife pressure is **42**, the setting documented for Liene sticker stock. Adjustable range is **1–100**; different media require testing. Don't guess a pressure for expensive paper.
 - Cut tracing has a **100-contour limit**. If there are too many separate shapes the job is refused rather than silently dropping cuts.
 - Very small artwork can disappear during tracing. Increase its size or adjust the border, then check the preview.
-- Arrange uses a basic row layout. If it can't fit the artwork, it leaves the previous arrangement alone. Better packing is in the plan.
+- Arrange tries several space-saving placements and can rotate stickers by 90° when you allow it. No automatic shrinking or partial rearrangement. It will refuse a crowded sheet rather than quietly overlapping the cuts.
 - Cutting preflight blocks overlapping stickers, unsafe gaps between cut borders, malformed or out-of-sheet paths and invalid cutting settings. A path within 3 mm of an edge produces a warning. Print and export controls stay disabled until blocking errors are fixed. Export actions also recheck the current cut, including after dragging artwork.
 - Cancel stops scheduling further upload chunks and sends a single cancel command once the printer has assigned a job number. Already-started USB transfers cannot be recalled, and the printer may continue moving. Confirm it has stopped before handling the sheet. A failed or interrupted transfer requires disconnecting and reconnecting before sending another job.
 

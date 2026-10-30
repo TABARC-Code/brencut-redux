@@ -168,7 +168,7 @@ kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4
 <header>
   <div class="brand">
     <span class="brand-mark" aria-hidden="true">✂</span>
-    <div><h1>BRENCUT <small style="font-size:.55em;opacity:.7;vertical-align:middle">v1.6.2</small></h1><div class="sub">Sticker sheets · Liene PixCut S1</div></div>
+    <div><h1>BRENCUT <small style="font-size:.55em;opacity:.7;vertical-align:middle">v1.7.3</small></h1><div class="sub">Sticker sheets · Liene PixCut S1</div></div>
   </div>
   <div class="appearance-control">
     <span class="appearance-label">LOOK</span>
@@ -202,6 +202,7 @@ kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4
         <button id="arrangeBtn" class="btn" type="button" title="Automatically arrange stickers">Arrange</button>
         <button id="clearBtn" class="btn" type="button" title="Remove all stickers">Clear</button>
       </div>
+      <label class="control-note" style="display:block;margin:8px 0"><input id="rotateArrange" type="checkbox"> Allow 90° rotation when arranging</label>
       <div class="btns" style="margin-top:8px"><button id="saveProjectBtn" class="btn" type="button">Save project</button><button id="openProjectBtn" class="btn" type="button">Open project</button></div>
       <fieldset style="border:1px solid var(--outline);border-radius:6px;margin:8px 0;padding:8px"><legend>Import artwork as</legend><label style="display:block"><input type="radio" name="importMode" value="stickers" checked> Individual stickers (default)</label><label style="display:block"><input type="radio" name="importMode" value="sheet"> Full 4 × 7 sheet</label></fieldset>
       <input id="projectFile" type="file" accept=".brencut,application/json" hidden>
