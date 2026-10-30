@@ -1,7 +1,7 @@
 # BrenCut Redux — development notes
 
 Maintainer: TABARC-Code  
-Working baseline: 1.7.8
+Working baseline: 1.8.4
 
 Keep the USB protocol, 4 × 7-inch output format, existing cut geometry and three appearance options stable unless tests or hardware evidence justify a change. Make each release buildable before moving on. The machine gets the final say.
 
@@ -52,7 +52,9 @@ Follow-up v1.7.8 [DONE]: prepared-sheet import no longer crops ordinary sticker 
 
 Acceptance: packing never silently overlaps stickers; dense fixtures demonstrate equal or better use of space; the original arrange behaviour remains available as fallback.
 
-## v1.5.0 — Editing workflow [PLANNED]
+## v1.5.x–v1.8.x — Editing workflow [PARTIAL]
+
+Follow-up v1.8.4 [DONE]: 40-step undo/redo for geometry and artwork list edits. Alignment guides and multiple sheets remain open.
 
 - Undo/redo for placement, resizing, rotating and deletion.
 - Alignment guides and reliable dimensions in millimetres.

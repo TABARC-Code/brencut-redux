@@ -1,5 +1,13 @@
 # Changes
 
+## 1.8.4 — undo and redo
+
+- Add Undo and Redo buttons and keyboard shortcuts for sticker placement, resizing, rotation, duplication, deletion, clearing and arranging.
+- Keep up to 40 editing states without copying the image bitmaps. A new edit clears the redo path.
+- Reset the history when opening a project so old, closed artwork cannot be restored by mistake; disable history actions during printing and file operations.
+- Test snapshot isolation, movement, rotation, deletion, redo invalidation and bounded history. Browser interaction and physical printing remain unverified.
+
+
 ## 1.7.8 — tighten full-sheet import
 
 - Treat printer-padded dimensions as a prepared sheet only when Full 4 × 7 sheet is selected. Ordinary stickers retain their complete artwork.

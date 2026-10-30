@@ -168,7 +168,7 @@ kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4
 <header>
   <div class="brand">
     <span class="brand-mark" aria-hidden="true">✂</span>
-    <div><h1>BRENCUT <small style="font-size:.55em;opacity:.7;vertical-align:middle">v1.7.8</small></h1><div class="sub">Sticker sheets · Liene PixCut S1</div></div>
+    <div><h1>BRENCUT <small style="font-size:.55em;opacity:.7;vertical-align:middle">v1.8.4</small></h1><div class="sub">Sticker sheets · Liene PixCut S1</div></div>
   </div>
   <div class="appearance-control">
     <span class="appearance-label">LOOK</span>
@@ -200,6 +200,8 @@ kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4
       <div class="btns">
         <button id="addBtn" class="btn primary" type="button">＋ Add artwork</button>
         <button id="arrangeBtn" class="btn" type="button" title="Automatically arrange stickers">Arrange</button>
+        <button id="undoBtn" class="btn" type="button" title="Undo (Ctrl+Z)" disabled>Undo</button>
+        <button id="redoBtn" class="btn" type="button" title="Redo (Ctrl+Y)" disabled>Redo</button>
         <button id="clearBtn" class="btn" type="button" title="Remove all stickers">Clear</button>
       </div>
       <label class="control-note" style="display:block;margin:8px 0"><input id="rotateArrange" type="checkbox"> Allow 90° rotation when arranging</label>
@@ -252,6 +254,7 @@ kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4
   <p>A fully opaque image normally cuts as a rectangle. Use a transparent background for shaped stickers. A fully opaque sheet cannot provide an internal cut outline. Tiny shapes or crowded sheets may need adjustment; BrenCut refuses jobs when it cannot generate a usable cut.</p>
   <h3>Simple, Kawaii and Engineer</h3>
   <p>The appearance buttons change colours, typography and spacing only. They do not change image scale, cutter pressure, sheet layout or printer commands. Your selection is remembered in this browser.</p>
+  <p><strong>Undo / Redo:</strong> Use the buttons above the artwork list or Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z also works). The last 40 editing steps are kept for this session. Opening a project starts a fresh history.</p>
   <h3>Printer connection</h3>
   <p>Use Chrome or Edge on a secure website or localhost. Close other software using the printer before connecting. Export the JPEG and PLT files if you only need the prepared artwork and cut path.</p>
   <p class="small">Shortcuts: arrow keys = move 1 mm; Shift + arrow = 5 mm; R = rotate; D = duplicate; Delete = remove. Escape closes help.</p>

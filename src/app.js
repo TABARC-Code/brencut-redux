@@ -6,6 +6,7 @@ import { PROJECT_LIMIT, SOURCE_MIMES, makeProjectDocument, validateProjectDocume
 import { inspectSheet } from './preflight.js';
 import { planLayout } from './layout.js';
 import { classifyImport } from './import.js';
+import { createHistory } from './history.js';
 
 const $ = (id) => document.getElementById(id);
 const PX_PER_MM = 300 / 25.4;
@@ -64,6 +65,9 @@ let selected = null;
 let nextId = 1;
 let projectBusy = false;
 let importing = false;
+const history = createHistory();
+let restoringHistory = false;
+const snapshot = () => ({ items: stickers.map(k => ({ ...k })), selectedId: selected?.id ?? null });
 const bbox = (k) => {
   const w = k.sw * k.s, h = k.sh * k.s;
   return k.rot % 2 ? { w: h, h: w } : { w, h };
@@ -325,10 +329,22 @@ function runTrace() {
 }
 
 function changed() {
+  if (!restoringHistory) history.record(snapshot());
   renderList();
   render();
   scheduleTrace();
   updateButtons();
+}
+function travelHistory(direction) {
+  if (printing || importing || projectBusy) { log('Finish the current operation before editing'); return; }
+  const state = direction === 'undo' ? history.undo() : history.redo();
+  if (!state) return;
+  restoringHistory = true;
+  try {
+    stickers = state.items.map(k => ({ ...k }));
+    selected = stickers.find(k => k.id === state.selectedId) ?? null;
+    changed();
+  } finally { restoringHistory = false; }
 }
 
 /* ═══ list ═══ */
@@ -455,6 +471,13 @@ view.addEventListener('pointercancel', endDrag);
 
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select, button, [contenteditable="true"]') || $('helpDialog').open) return;
+  const modifier = e.ctrlKey || e.metaKey;
+  if (modifier && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+    travelHistory(e.shiftKey ? 'redo' : 'undo'); e.preventDefault(); return;
+  }
+  if (modifier && !e.altKey && (e.key === 'y' || e.key === 'Y')) {
+    travelHistory('redo'); e.preventDefault(); return;
+  }
   const k = selected;
   if (!k) return;
   const step = (e.shiftKey ? 5 : 1) * PX_PER_MM;
@@ -488,6 +511,8 @@ for (const input of document.querySelectorAll('input[name="importMode"]')) {
 $('rotateArrange').checked = settings.rotateArrange;
 $('rotateArrange').onchange = () => { settings.rotateArrange = $('rotateArrange').checked; store.set('rotateArrange', settings.rotateArrange); };
 $('arrangeBtn').onclick = arrange;
+$('undoBtn').onclick = () => travelHistory('undo');
+$('redoBtn').onclick = () => travelHistory('redo');
 $('clearBtn').onclick = () => { if (stickers.length && confirm('Remove all stickers from the sheet?')) { stickers = []; selected = null; changed(); } };
 
 /* ═══ cut settings ═══ */
@@ -618,6 +643,7 @@ async function openProject(file) {
     store.set('marginMm', settings.marginMm);
     store.set('kp', settings.knifePressure);
     store.set('cutHoles', settings.cutHoles);
+    history.reset(); // old bitmaps must not linger in an undo stack after opening a project
     for (const old of previous) old.bmp?.close?.();
     changed();
     log('Project opened (' + decoded.length + ' artwork items). Printing remains manual on open.');
@@ -751,6 +777,9 @@ $('cancelBtn').onclick = () => {
 };
 
 function updateButtons() {
+  const editingBlocked = !!printing || importing || projectBusy;
+  $('undoBtn').disabled = editingBlocked || !history.canUndo;
+  $('redoBtn').disabled = editingBlocked || !history.canRedo;
   const review = !cutStale ? inspectSheet(stickers, cut, settings, SHEET) : null;
   const hasCut = !!review?.ok;
   const reconnectNeeded = !!conn?.px?.needsReconnect;
