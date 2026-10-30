@@ -1,5 +1,13 @@
 # Changes
 
+## 1.7.8 — tighten full-sheet import
+
+- Treat printer-padded dimensions as a prepared sheet only when Full 4 × 7 sheet is selected. Ordinary stickers retain their complete artwork.
+- Require an empty workspace and one image for full-sheet import; prevent mixing prepared sheets with individual stickers.
+- Refuse to add individual stickers where no safe position remains, and report any size reduction when importing oversized artwork.
+- Cover import classification, padded raster handling, landscape orientation and invalid dimensions. Browser import and physical cutting remain to be checked.
+
+
 ## 1.7.3 — better automatic layout
 
 - Replace row packing with a bounded rectangle packer that tries several artwork orders and keeps the shortest successful sheet layout.

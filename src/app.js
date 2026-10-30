@@ -5,6 +5,7 @@ import { installAppearanceControls } from './appearance.js';
 import { PROJECT_LIMIT, SOURCE_MIMES, makeProjectDocument, validateProjectDocument } from './project.js';
 import { inspectSheet } from './preflight.js';
 import { planLayout } from './layout.js';
+import { classifyImport } from './import.js';
 
 const $ = (id) => document.getElementById(id);
 const PX_PER_MM = 300 / 25.4;
@@ -149,6 +150,15 @@ async function trimmed(bmp) {
 
 async function addFiles(files) {
   if (printing || projectBusy || importing) { log('Finish the current operation before importing'); return; }
+  const importMode = settings.importMode;
+  if (importMode === 'sheet' && (files.length !== 1 || stickers.length)) {
+    log('Full-sheet import needs one image and an empty sheet. Clear the current artwork first.');
+    return;
+  }
+  if (importMode === 'stickers' && stickers.some(k => k.sheet)) {
+    log('Remove the prepared full sheet before adding individual stickers.');
+    return;
+  }
   importing = true;
   updateButtons();
   try {
@@ -161,14 +171,11 @@ async function addFiles(files) {
       const sourceData = await blobToDataUrl(new Blob([buf], { type: f.type }));
       let src = await createImageBitmap(new Blob([buf], { type: f.type }));
       const name = f.name.replace(/\.[^.]+$/, '') || 'pasted';
-      // A whole 4x7 sheet (either orientation) is placed exactly as drawn: no trim, no repacking.
-      if (src.width === SHEET.rasterW && src.height === SHEET.rasterH) {
-        src = await createImageBitmap(src, SHEET.padX, SHEET.padY, SHEET.w, SHEET.h); // already padded: drop it
-      }
-      const aspect = src.width / src.height;
-      const land = Math.abs(aspect - 7 / 4) < 0.01;
-      if (settings.importMode === 'sheet') {
-        if (!(land || Math.abs(aspect - 4 / 7) < 0.01)) throw new Error('Full-sheet import requires a 4:7 or 7:4 aspect ratio');
+      const plan = classifyImport(importMode, src.width, src.height, SHEET);
+      // Printer padding belongs to prepared sheets, not an ordinary sticker of the same size.
+      if (plan.crop) src = await createImageBitmap(src, plan.crop.x, plan.crop.y, plan.crop.w, plan.crop.h);
+      if (plan.sheet) {
+        const land = plan.landscape;
         const k = { id: nextId++, name, bmp: src, sw: src.width, sh: src.height, s: SHEET.h / Math.max(src.width, src.height), rot: land ? 1 : 0, x: 0, y: 0, sheet: true, sourceName: f.name.slice(0, 240), sourceData };
         const t = await trimmed(src);
         if (!t) { log(`${f.name}: fully transparent, skipped`); continue; }
@@ -184,11 +191,17 @@ async function addFiles(files) {
       const dpi = pngDpi(buf) ?? 300;
       const k = { id: nextId++, name: name.slice(0, 240), bmp: t.bmp, sw: t.w, sh: t.h, s: 300 / dpi, rot: 0, x: 0, y: 0,
         sourceName: f.name.slice(0, 240), sourceData };
+      const originalScale = k.s;
       fitScale(k);
+      if (k.s < originalScale - 1e-8) log(`${f.name}: reduced to fit the 4×7 sheet; check the size before printing`);
       const b = bbox(k);
       const spot = findSpot(b.w, b.h, stickers);
-      if (spot) Object.assign(k, spot);
-      else { k.x = EDGE; k.y = EDGE; log(`${f.name}: no free space left, placed on top; try arrange or resize`); }
+      if (!spot) {
+        t.bmp?.close?.();
+        log(`${f.name}: no free space; not added. Try Arrange or reduce the size.`);
+        continue;
+      }
+      Object.assign(k, spot);
       stickers.push(k);
       selected = k;
     } catch (e) {

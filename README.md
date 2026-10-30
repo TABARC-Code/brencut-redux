@@ -4,14 +4,14 @@ A small browser-based workspace for preparing sticker sheets and cutting them on
 
 This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-**Version:** 1.7.3  
+**Version:** 1.7.8  
 **Status:** Development release. Software checks pass; cancellation and bounded transfer recovery have simulated transport tests; physical PixCut S1 confirmation remains outstanding.
 
 Manual printing remains the default. The print panel also offers automatic printing after an artwork import batch. This requires an idle, alert-free connected printer, valid cut paths and non-overlapping, in-bounds artwork. Hardware validation is still outstanding.
 
 **Portable projects:** Save project exports a versioned .brencut JSON document with the working PNG bitmaps, original uploaded artwork (when available), geometry and cutting settings. Open project checks the entire document before replacing the current sheet. Version 1 projects still open, though they cannot recover originals that were never saved. Opening does not start printing. Maximum project size: 40 MiB; individual original images are limited to 12 MiB, with a 32-million-pixel total working-artwork budget on load. Saving snapshots the current geometry before encoding images; importing or opening a project cannot race the start of a print job.
 
-**Explicit import mode:** Artwork is imported as individual stickers by default, even if its dimensions happen to match a full sheet. Select Full 4 × 7 sheet when importing a prepared page. This preference is stored locally.
+**Explicit import mode:** Artwork is imported as individual stickers by default, even if its dimensions happen to match a full sheet. Select Full 4 × 7 sheet when importing a prepared page. This preference is stored locally. Full-sheet import requires an empty page and exactly one image; padded printer rasters are cropped only in this mode.
 
 ## Getting started
 
@@ -19,7 +19,7 @@ Manual printing remains the default. The print panel also offers automatic print
 2. Add transparent PNG artwork by file picker, drag-and-drop or paste. Drag to position it, pull the corner handle to resize, or use the artwork list for precise dimensions. **Arrange** packs separate stickers without changing their size. Tick **Allow 90° rotation** to try both orientations. If any item will not fit, the existing positions stay untouched.
 3. Set the white border and knife pressure, inspect the cut preview, then choose **Print & Cut**. You can export the JPEG and PLT files without a printer attached.
 
-The working sticker area is **4 × 7 inches**, at **300 DPI**. Full sheets are supported when imported at the expected aspect ratio. The import mode is explicit: individual stickers are the default; choose Full 4 × 7 sheet for prepared artwork.
+The working sticker area is **4 × 7 inches**, at **300 DPI**. Full sheets are supported when imported at the expected aspect ratio. The import mode is explicit: individual stickers are the default; choose Full 4 × 7 sheet for prepared artwork. A sticker matching the printer raster dimensions is no longer cropped by mistake. If new artwork cannot fit without an overlap, it is not added; oversized stickers are reported when reduced to fit.
 
 **WebUSB matters:** Chrome and Edge can connect to the printer. Browsers without WebUSB can still prepare artwork and export files, but cannot print directly. Nothing is uploaded to a server by the application.
 
