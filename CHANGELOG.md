@@ -1,5 +1,12 @@
 # Changes
 
+## 1.9.2 — alignment guides
+
+- Show temporary horizontal and vertical guides while dragging artwork near the sheet centre or another sticker edge or centre.
+- Keep the guides out of print composition and cutting geometry; no snapping or unexpected movement.
+- Cover rotated artwork, nearby sticker edges, centre lines and guide tolerance with focused tests. Browser appearance still needs checking.
+
+
 ## 1.8.4 — undo and redo
 
 - Add Undo and Redo buttons and keyboard shortcuts for sticker placement, resizing, rotation, duplication, deletion, clearing and arranging.

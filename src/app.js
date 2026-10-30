@@ -7,6 +7,7 @@ import { inspectSheet } from './preflight.js';
 import { planLayout } from './layout.js';
 import { classifyImport } from './import.js';
 import { createHistory } from './history.js';
+import { findGuides } from './guides.js';
 
 const $ = (id) => document.getElementById(id);
 const PX_PER_MM = 300 / 25.4;
@@ -276,6 +277,15 @@ function render() {
     vg.restore();
   }
 
+  if (guides) {
+    vg.save();
+    vg.strokeStyle = A;
+    vg.lineWidth = 2;
+    vg.setLineDash([9, 7]);
+    if (guides.x != null) { vg.beginPath(); vg.moveTo(guides.x, 0); vg.lineTo(guides.x, SHEET.h); vg.stroke(); }
+    if (guides.y != null) { vg.beginPath(); vg.moveTo(0, guides.y); vg.lineTo(SHEET.w, guides.y); vg.stroke(); }
+    vg.restore();
+  }
   if (selected) {
     const b = bbox(selected);
     vg.save();
@@ -418,7 +428,9 @@ const toSheet = (e) => {
   return { x: ((e.clientX - r.left) * SHEET.w) / r.width, y: ((e.clientY - r.top) * SHEET.h) / r.height };
 };
 let drag = null;
+let guides = null;
 view.addEventListener('pointerdown', (e) => {
+  guides = null;
   const p = toSheet(e);
   view.focus();
   if (selected) {
@@ -461,11 +473,12 @@ view.addEventListener('pointermove', (e) => {
     k.s *= lim;
   }
   clampInto(k);
+  guides = findGuides(k, stickers.filter(other => other !== k), SHEET);
   cutStale = true;
   updateButtons();
   render();
 });
-const endDrag = () => { if (drag) { drag = null; changed(); } };
+const endDrag = () => { if (drag) { drag = null; guides = null; changed(); } };
 view.addEventListener('pointerup', endDrag);
 view.addEventListener('pointercancel', endDrag);
 

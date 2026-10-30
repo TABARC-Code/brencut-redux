@@ -4,7 +4,7 @@ A small browser-based workspace for preparing sticker sheets and cutting them on
 
 This is the **TABARC-Code** fork of [LTKMN/brencut](https://github.com/LTKMN/brencut). The original project and its contributors made direct USB printing possible; this fork develops the interface, safeguards and everyday workflow while keeping that working core in place.
 
-**Version:** 1.8.4  
+**Version:** 1.9.2  
 **Status:** Development release. Software checks pass; cancellation and bounded transfer recovery have simulated transport tests; physical PixCut S1 confirmation remains outstanding.
 
 Manual printing remains the default. The print panel also offers automatic printing after an artwork import batch. This requires an idle, alert-free connected printer, valid cut paths and non-overlapping, in-bounds artwork. Hardware validation is still outstanding.
@@ -37,7 +37,7 @@ There is an offline appearance demo in [`appearance-preview.html`](appearance-pr
 
 ## Controls and shortcuts
 
-- Drag artwork to move it; drag its corner to resize.
+- Drag artwork to move it; drag its corner to resize. Temporary alignment guides appear near the sheet centre or other sticker edges and centres. They are visual only and do not snap or alter the cutting geometry.
 - Arrow keys move a selected item by **1 mm**, or **5 mm** while holding Shift.
 - **R** rotates, **D** duplicates, **Delete** removes and **Escape** clears the selection.
 - **Ctrl+V** pastes artwork from the clipboard.
