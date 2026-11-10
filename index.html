@@ -119,6 +119,18 @@ input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; curs
 #list .dims input { width:59px; min-height:29px; }
 #list .acts { display:flex; gap:2px; }
 #listEmpty { border:1px dashed var(--outline); padding:13px; border-radius:var(--radius); margin-top:12px; color:var(--secondary); font-size:11px; }
+.workspace-tools { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px; }
+.workspace-tools label { display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--secondary); }
+.workspace-tools input { width:100%; text-align:left; }
+.workspace-tools input:disabled { opacity:.55; }
+#precisionHint { margin-top:7px; }
+#preflightPanel { border:1px solid var(--outline); border-radius:var(--radius); padding:10px; background:var(--raised); }
+#preflightPanel[data-state="blocked"] { border-left:4px solid #d46a62; }
+#preflightPanel[data-state="warning"] { border-left:4px solid #c8943c; }
+#preflightPanel[data-state="ready"] { border-left:4px solid #4eae8c; }
+#preflightPanel ul { padding-left:18px; margin:7px 0 0; }
+#preflightPanel li { margin:5px 0; overflow-wrap:anywhere; }
+#preflightPanel .preflight-heading { font-weight:750; }
 #cutStats { padding:10px; border:1px solid var(--outline); border-radius:var(--radius); background:var(--raised); line-height:1.5; margin-top:12px; }
 #progress { height:8px; background:var(--raised); border:1px solid var(--outline); border-radius:999px; overflow:hidden; margin:12px 0 7px; }
 #progress > div { height:100%; width:0; background:var(--accent); transition:width .2s; }
@@ -168,7 +180,7 @@ kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4
 <header>
   <div class="brand">
     <span class="brand-mark" aria-hidden="true">✂</span>
-    <div><h1>BRENCUT <small style="font-size:.55em;opacity:.7;vertical-align:middle">v1.9.2</small></h1><div class="sub">Sticker sheets · Liene PixCut S1</div></div>
+    <div><h1>BRENCUT <small style="font-size:.55em;opacity:.7;vertical-align:middle">v1.9.3</small></h1><div class="sub">Sticker sheets · Liene PixCut S1</div></div>
   </div>
   <div class="appearance-control">
     <span class="appearance-label">LOOK</span>
@@ -209,6 +221,13 @@ kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4
       <fieldset style="border:1px solid var(--outline);border-radius:6px;margin:8px 0;padding:8px"><legend>Import artwork as</legend><label style="display:block"><input type="radio" name="importMode" value="stickers" checked> Individual stickers (default)</label><label style="display:block"><input type="radio" name="importMode" value="sheet"> Full 4 × 7 sheet</label><small>Prepared sheets need an empty page. Printer padding is removed only in this mode.</small></fieldset>
       <input id="projectFile" type="file" accept=".brencut,application/json" hidden>
       <input id="file" type="file" accept="image/png,image/webp,image/gif" multiple hidden>
+      <div class="workspace-tools" role="group" aria-label="Selected sticker position and size">
+        <label for="positionX">X position (mm)<input id="positionX" type="number" min="0" step="0.1" disabled></label>
+        <label for="positionY">Y position (mm)<input id="positionY" type="number" min="0" step="0.1" disabled></label>
+        <label for="positionW">Width (mm)<input id="positionW" type="number" min="3" step="0.1" disabled></label>
+        <label for="positionH">Height (mm)<input id="positionH" type="number" min="3" step="0.1" disabled></label>
+      </div>
+      <p id="precisionHint" class="control-note" role="status">Select artwork to edit its position and size.</p>
       <div id="listEmpty">No artwork added. PNGs with transparent backgrounds give the best cut outlines.</div>
       <ul id="list" aria-label="Imported stickers"></ul>
     </section>
@@ -227,6 +246,7 @@ kbd { border:1px solid var(--outline); background:var(--raised); border-radius:4
       <h2><span><span class="step">03</span> Print or export</span></h2>
       <p class="section-desc">Connect your PixCut S1 to print and cut in one operation.</p>
       <fieldset style="border:1px solid var(--outline);border-radius:var(--radius);margin:0 0 12px;padding:10px"><legend>After importing artwork</legend><label style="display:block;margin:4px 0"><input type="radio" name="printMode" value="manual" checked> Manual — review first</label><label style="display:block;margin:4px 0"><input type="radio" name="printMode" value="auto"> Automatic — print when ready</label><small>One job per import batch, subject to printer and cut preflight.</small></fieldset>
+      <div id="preflightPanel" data-state="blocked" role="status" aria-live="polite" aria-atomic="true"><div class="preflight-heading" id="preflightHeading">Preflight: add artwork</div><ul id="preflightIssues"><li>Add artwork to begin.</li></ul></div>
       <button id="printBtn" class="btn primary wide" type="button" disabled>Print &amp; cut sticker sheet</button>
       <p id="printHint" class="control-note" role="status">Add artwork and connect your printer to begin.</p>
       <div class="btns" style="margin-top:12px">
