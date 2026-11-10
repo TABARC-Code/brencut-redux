@@ -338,6 +338,52 @@ function runTrace() {
   updateButtons();
 }
 
+function refreshPrecision() {
+  const ids = ['positionX', 'positionY', 'positionW', 'positionH'];
+  const locked = !!printing || importing || projectBusy;
+  const k = selected && stickers.includes(selected) ? selected : null;
+  for (const id of ids) $(id).disabled = !k || locked;
+  $('precisionHint').textContent = k ? 'Position is measured from the top-left of the sheet.' : 'Select artwork to edit its position and size.';
+  if (!k) { for (const id of ids) $(id).value = ''; return; }
+  const b = bbox(k);
+  for (const [id, value] of [['positionX',k.x],['positionY',k.y],['positionW',b.w],['positionH',b.h]]) {
+    if (document.activeElement !== $(id)) $(id).value = (value / PX_PER_MM).toFixed(1);
+  }
+}
+for (const [id, axis] of [['positionX','x'],['positionY','y'],['positionW','w'],['positionH','h']]) {
+  $(id).addEventListener('change', () => {
+    const k = selected;
+    if (!k || !stickers.includes(k) || printing || importing || projectBusy) return;
+    const mm = Number($(id).value);
+    if (!Number.isFinite(mm) || mm < (axis === 'w' || axis === 'h' ? 3 : 0)) { refreshPrecision(); return; }
+    const before = bbox(k);
+    if (axis === 'x' || axis === 'y') {
+      if (mm * PX_PER_MM + (axis === 'x' ? before.w : before.h) > (axis === 'x' ? SHEET.w : SHEET.h) + 0.01) {
+        log('Position exceeds the sheet'); refreshPrecision(); return;
+      }
+      k[axis] = Math.round(mm * PX_PER_MM);
+    } else {
+      const targetScale = k.s * mm * PX_PER_MM / before[axis];
+      const width = before.w * targetScale / k.s, height = before.h * targetScale / k.s;
+      if (width > SHEET.w || height > SHEET.h) { log('Artwork would exceed the sheet'); refreshPrecision(); return; }
+      k.s = targetScale;
+      clampInto(k);
+    }
+    changed();
+  });
+}
+function renderPreflight(review) {
+  const panel = $('preflightPanel'), heading = $('preflightHeading'), list = $('preflightIssues');
+  const errors = review.errors, warnings = review.warnings;
+  panel.dataset.state = errors.length ? 'blocked' : warnings.length ? 'warning' : 'ready';
+  heading.textContent = errors.length ? 'Preflight: ' + errors.length + ' blocking issue' + (errors.length === 1 ? '' : 's') :
+    warnings.length ? 'Preflight: ready with ' + warnings.length + ' warning' + (warnings.length === 1 ? '' : 's') : 'Preflight: sheet ready';
+  list.replaceChildren();
+  const issues = [...errors.map(x => 'Stop: ' + x.message), ...warnings.map(x => 'Check: ' + x.message)];
+  if (!issues.length) issues.push('Artwork and cutting paths pass the sheet checks.');
+  for (const message of issues) { const li = document.createElement('li'); li.textContent = message; list.append(li); }
+}
+
 function changed() {
   if (!restoringHistory) history.record(snapshot());
   renderList();
@@ -394,7 +440,7 @@ function renderList() {
     dupB.onclick = (e) => { e.stopPropagation(); duplicate(k); };
     delB.onclick = (e) => { e.stopPropagation(); remove(k); };
     li.append(th, mid, acts);
-    li.onclick = (e) => { if (e.target.tagName !== 'INPUT') { selected = k; renderList(); render(); } };
+    li.onclick = (e) => { if (e.target.tagName !== 'INPUT') { selected = k; renderList(); render(); refreshPrecision(); } };
     ul.append(li);
   }
 }
@@ -499,7 +545,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'r' || e.key === 'R') rotate(k);
   else if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey) duplicate(k);
   else if (e.key === 'Delete' || e.key === 'Backspace') { remove(k); e.preventDefault(); }
-  else if (e.key === 'Escape') { selected = null; renderList(); render(); }
+  else if (e.key === 'Escape') { selected = null; renderList(); render(); refreshPrecision(); }
 });
 
 /* ═══ file input, drop, paste ═══ */
@@ -795,6 +841,8 @@ function updateButtons() {
   $('redoBtn').disabled = editingBlocked || !history.canRedo;
   const review = !cutStale ? inspectSheet(stickers, cut, settings, SHEET) : null;
   const hasCut = !!review?.ok;
+  renderPreflight(inspectSheet(stickers, cut, settings, SHEET, cutStale));
+  refreshPrecision();
   const reconnectNeeded = !!conn?.px?.needsReconnect;
   $('printBtn').disabled = !conn || !hasCut || !!printing || reconnectNeeded || projectBusy || importing;
   let reason;
