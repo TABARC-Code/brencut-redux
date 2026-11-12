@@ -1,11 +1,11 @@
 {
-  "name": "brencut-packing-experimental",
-  "version": "0.1.0",
+  "name": "brencut-workshop-experimental",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "build": "node --check layout.js && node --check workbench.js"
+    "build": "node --check layout.js && node --check workshop.js && node --check workbench.js"
   },
   "engines": {
     "node": ">=22"
